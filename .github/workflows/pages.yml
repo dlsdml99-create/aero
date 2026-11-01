@@ -1,0 +1,36 @@
+# 다운로드·설명서 페이지만 다시 올리기 (앱은 다시 빌드하지 않음): site 폴더를 고치거나 직접 실행할 때
+name: Aero 다운로드 페이지
+on:
+  push:
+    branches: [main]
+    paths: ['site/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency: { group: pages, cancel-in-progress: false }
+jobs:
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: 최신 버전 번호로 페이지 채우기
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          VER=$(gh release view --json tagName -q .tagName | sed 's/^v//')
+          MB=$(gh release view --json assets -q '.assets[] | select(.name=="Aero.apk") | .size' | awk '{printf "%.1f", $1/1048576}')
+          pip install -q qrcode || true
+          python3 -c "import qrcode,qrcode.image.svg as s;qrcode.make('https://dlsdml99-create.github.io/aero/dl.html',image_factory=s.SvgPathImage,border=1).save('site/qr.svg')" || true
+          sed -i "s/__VER__/v$VER/g; s/__MB__/$MB/g" site/*.html
+          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=https://github.com/dlsdml99-create/aero/releases/latest/download/Aero.apk"><title>Aero 받기</title><a href="https://github.com/dlsdml99-create/aero/releases/latest/download/Aero.apk">Aero.apk 받기</a>' > site/dl.html
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+  pages:
+    needs: site
+    runs-on: ubuntu-24.04
+    environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
