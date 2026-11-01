@@ -1,0 +1,8 @@
+<resources>
+    <color name="ic_bg">#132033</color>
+    <color name="bg">#E7EBF0</color>
+    <color name="w_bg">#16202B</color>
+    <color name="w_text">#E9EEF4</color>
+    <color name="w_dim">#8E9BAA</color>
+    <color name="w_amber">#FFC62E</color>
+</resources>

@@ -1,0 +1,83 @@
+# [Aero용] build.yml - dlsdml99-create/aero 저장소 전용
+name: Aero APK 만들기
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: aero-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 저장소 확인
+        run: |
+          if [ "${{ github.repository }}" != "dlsdml99-create/aero" ]; then
+            echo "::error::이 build.yml은 Aero(aero) 저장소용이에요."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: 버전 읽기
+        run: |
+          VER=$(grep -oE "const APP_VERSION = '[0-9.]+'" app/src/main/assets/index.html | grep -oE "[0-9.]+" | head -1)
+          [ -n "$VER" ] || { echo "::error::index.html에서 버전을 찾지 못했어요"; exit 1; }
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          echo "앱 버전: v$VER"
+      - name: APK 만들기
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          VERSION_NAME: ${{ env.VER }}
+          SIGNING: ${{ secrets.AERO_SIGNING }}
+        run: |
+          if [ -z "$SIGNING" ]; then
+            echo "::error::서명 키 비밀값(AERO_SIGNING)이 없어요. 저장소 Settings → Secrets and variables → Actions → New repository secret 에 넣어 주세요."
+            exit 1
+          fi
+          export KEY_PASS="${SIGNING%%:*}"
+          export KEYSTORE="$RUNNER_TEMP/aero.jks"
+          echo "${SIGNING#*:}" | base64 -d > "$KEYSTORE"
+          gradle assembleRelease --no-daemon --stacktrace
+          rm -f "$KEYSTORE"
+          cp app/build/outputs/apk/release/app-release.apk Aero.apk
+          ls -la Aero.apk
+      - name: 릴리스 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MB=$(awk "BEGIN{printf \"%.1f\", $(stat -c%s Aero.apk)/1048576}")
+          echo "MB=$MB" >> "$GITHUB_ENV"
+          sed -i "s/__VER__/v$VER/g; s/__MB__/$MB/g" release-notes.md
+          gh release delete "v$VER" --yes --cleanup-tag || true
+          gh release create "v$VER" Aero.apk --latest --title "Aero v$VER" --notes-file release-notes.md
+      - name: 다운로드 페이지
+        run: |
+          pip install -q qrcode || true
+          python3 -c "import qrcode,qrcode.image.svg as s;qrcode.make('https://dlsdml99-create.github.io/aero/dl.html',image_factory=s.SvgPathImage,border=1).save('site/qr.svg')" || true
+          sed -i "s/__VER__/v$VER/g; s/__MB__/$MB/g" site/*.html
+          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=https://github.com/dlsdml99-create/aero/releases/latest/download/Aero.apk"><title>Aero 받기</title><a href="https://github.com/dlsdml99-create/aero/releases/latest/download/Aero.apk">Aero.apk 받기</a>' > site/dl.html
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  pages:
+    needs: build
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

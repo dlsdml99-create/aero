@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aero 받기</title>
+<meta name="description" content="항공권을 찍으면 공항까지 몇 시에 나가야 하는지 알려주는 안드로이드 앱">
+<meta property="og:title" content="Aero - 항공권 찍으면 출발 시각까지">
+<meta property="og:description" content="탑승권·e-티켓을 찍으면 공항 출발 시각, 환승, 탑승권, 입국 준비까지 챙겨줘요.">
+<meta property="og:image" content="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* 레이아웃: 출발 전광판 같은 앱 카드(받기 버튼 + QR) → 소개 → 업데이트 내용 → 설치 방법 → 안전 정보 → 자주 묻는 질문 */
+:root{
+  --bg:#E7EBF0; --surface:#FFFFFF; --ink:#132033; --sub:#4A596C; --line:#D0D8E1;
+  --board:#16202B; --board-2:#0E161F; --board-text:#E9EEF4; --board-dim:#8E9BAA; --amber:#FFC62E; --amber-ink:#7E5300; --amber-soft:#FFF1C9;
+  --route:#2459C2; --ok:#17804F;
+  --display:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  --shadow:0 1px 2px rgb(19 32 51 / .06),0 8px 22px rgb(19 32 51 / .07);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B121A; --surface:#141E29; --ink:#E5EBF2; --sub:#A7B3C1; --line:#273443; --board:#0F1821; --board-2:#080D13;
+  --amber-ink:#FFD45C; --amber-soft:#382C0C; --route:#7AA8FF; --ok:#4FC48C; --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B121A; --surface:#141E29; --ink:#E5EBF2; --sub:#A7B3C1; --line:#273443; --board:#0F1821; --board-2:#080D13;
+  --amber-ink:#FFD45C; --amber-soft:#382C0C; --route:#7AA8FF; --ok:#4FC48C; --shadow:0 1px 2px rgb(0 0 0 / .3); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 var(--body);margin:0}
+.wrap{max-width:900px;margin:0 auto;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:44px}
+.wrap>*{min-width:0}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h2{font-size:26px;font-weight:800;letter-spacing:-.02em} h3{font-size:18px}
+p{margin:0} a{color:var(--route)}
+.eyebrow{font-size:12px;letter-spacing:.08em;color:var(--sub);font-weight:800;margin-bottom:6px}
+.lead{color:var(--sub);max-width:60ch;margin-top:6px}
+
+.app{background:var(--board);color:var(--board-text);border-radius:24px;padding:22px;box-shadow:var(--shadow);display:grid;gap:18px}
+.top{display:flex;gap:16px;align-items:center}
+.top>div{min-width:0}
+.top img{width:84px;height:84px;border-radius:20px;flex:none}
+.top h1{font-family:var(--display);font-size:clamp(46px,11vw,64px);font-weight:700;letter-spacing:.02em;line-height:1}
+.tag{color:var(--board-text);opacity:.85;font-size:16px;margin-top:4px}
+.facts{display:flex;flex-wrap:wrap;gap:6px}
+.fact{font-size:13px;padding:3px 11px;border-radius:999px;background:var(--board-2);color:var(--board-dim);font-variant-numeric:tabular-nums}
+.get{display:flex;gap:16px;align-items:center}
+.stack{display:grid;gap:8px;flex:1;min-width:0}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:15px 18px;border-radius:14px;font-weight:800;text-decoration:none;font-size:18px}
+.btn svg{width:22px;height:22px;flex:none}
+.btn.dl{background:var(--amber);color:#1A1405}
+.btn.ghost{background:var(--board-2);color:var(--board-text);font-size:15px;padding:11px 16px;border:1px solid #2A3644}
+.btn:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+.small{font-size:13px;color:var(--board-dim)}
+.qr{flex:none;display:grid;justify-items:center;gap:4px;font-size:12px;color:var(--board-dim);text-align:center;width:118px}
+.qr img{width:110px;height:110px;background:#fff;border-radius:12px;padding:6px}
+@media (max-width:460px){.qr{display:none}}
+
+.feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.feat{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:16px 18px;display:grid;gap:4px;align-content:start}
+.feat b{font-size:16px}
+.feat p{color:var(--sub);font-size:14px}
+.feat .k{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--amber-ink)}
+
+.log{display:grid;gap:10px}
+.ver{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:16px 18px;display:grid;grid-template-columns:84px 1fr;gap:12px;align-items:start}
+.ver b{font-family:var(--display);font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.ver .new{display:inline-block;font-size:11px;font-weight:800;background:var(--amber);color:#1A1405;border-radius:99px;padding:1px 8px;margin-top:6px}
+.ver ul{margin:0;padding-left:18px}
+@media (max-width:460px){.ver{grid-template-columns:1fr;gap:6px}}
+
+ol.steps{margin:0;padding:20px;list-style:none;counter-reset:s;display:grid;gap:12px;background:var(--surface);border-radius:18px;box-shadow:var(--shadow)}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:10px}
+ol.steps li::before{content:counter(s);width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:800;font-size:14px}
+.note{background:var(--amber-soft);color:var(--ink);border-radius:12px;padding:12px 14px;font-size:15px;margin-top:12px}
+
+.table-wrap{overflow-x:auto;background:var(--surface);border-radius:18px;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--sub)}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:700;white-space:nowrap}
+.ok{color:var(--ok);font-weight:800}
+details{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:4px 18px}
+details+details{margin-top:8px}
+summary{cursor:pointer;font-weight:700;padding:12px 0}
+details p{padding:0 0 14px;color:var(--sub)}
+footer{color:var(--sub);font-size:14px;border-top:1px solid var(--line);padding-top:20px}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <section class="app" aria-labelledby="appName">
+    <div class="top">
+      <img src="icon.png" alt="" width="84" height="84">
+      <div>
+        <h1 id="appName">AERO</h1>
+        <p class="tag">항공권을 찍으면 공항까지 몇 시에 나가야 하는지 알려줘요.</p>
+      </div>
+    </div>
+    <div class="facts">
+      <span class="fact">안드로이드 7.0 이상</span><span class="fact">__VER__</span><span class="fact">__MB__MB</span><span class="fact">무료 · 광고 없음</span>
+    </div>
+    <div class="get">
+      <div class="stack">
+        <a class="btn dl" href="https://github.com/dlsdml99-create/aero/releases/latest/download/Aero.apk">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          앱 다운로드 (Aero.apk)</a>
+        <a class="btn ghost" href="#install">처음 설치하는 방법</a>
+        <p class="small">버튼을 누르면 Aero.apk가 바로 받아져요. 받은 파일을 열어 설치하세요.</p>
+      </div>
+      <div class="qr"><img src="qr.svg" alt="휴대폰으로 받는 QR 코드" width="110" height="110">컴퓨터에서 보고 있다면 휴대폰으로 찍어 받으세요</div>
+    </div>
+  </section>
+
+  <section aria-labelledby="introH">
+    <p class="eyebrow">소개</p>
+    <h2 id="introH">항공권 한 장이면 출발 준비 끝</h2>
+    <p class="lead">탑승권, 모바일 탑승권 캡처, e-티켓 PDF 무엇이든 찍거나 골라 넣으면 나머지는 Aero가 정리해요.</p>
+    <div class="feats" style="margin-top:16px">
+      <div class="feat"><span class="k">LEAVE</span><b>공항으로 나갈 시각</b><p>국제선 3시간 전 도착 기준으로 언제 집을 나서야 하는지 크게 보여줘요. 이동 시간은 한 번 눌러 바꿔요.</p></div>
+      <div class="feat"><span class="k">SCAN</span><b>찍기만 하면 자동 입력</b><p>탑승권 바코드와 글자를 폰 안에서 읽어요. 편명·좌석·예약번호·수하물이 알아서 채워져요.</p></div>
+      <div class="feat"><span class="k">ALERT</span><b>출발 알림 3번 · 위젯</b><p>전날 밤, 나가기 30분 전, 체크인 마감 전에 알려줘요. 홈 화면 위젯으로 앱을 안 열어도 보여요.</p></div>
+      <div class="feat"><span class="k">TRANSFER</span><b>환승 안내</b><p>환승 시간이 여유로운지 빠듯한지, 무엇부터 해야 하는지 순서대로 알려줘요. 인천 터미널 이동도 챙겨요.</p></div>
+      <div class="feat"><span class="k">PASS</span><b>탑승권 크게 보기</b><p>게이트 앞에서 바코드를 최대 밝기로 띄워요. 인터넷이 없어도 돼요. 일행 탑승권도 넘겨 가며 보여줘요.</p></div>
+      <div class="feat"><span class="k">TAXI</span><b>택시 기사에게 보여주기</b><p>공항 이름을 현지 글자로 크게 띄우고, 그 나라 택시 앱(그랩·우버·DiDi 등)을 바로 열어요.</p></div>
+      <div class="feat"><span class="k">ARRIVE</span><b>도착지 날씨 · 시차 · 도착 알리기</b><p>도착하는 날 날씨와 한국과의 시차를 보여주고, 마중 나올 사람에게 도착 시각을 카톡으로 보내요.</p></div>
+      <div class="feat"><span class="k">ENTRY</span><b>입국 준비 체크리스트</b><p>나라별 비자·전자여행허가·디지털 입국카드를 공식 사이트 링크와 함께 챙겨요. 여권 만료일도 확인해요.</p></div>
+      <div class="feat"><span class="k">ICN</span><b>인천공항 실시간</b><p>무료 인증키를 한 번 넣으면 체크인 카운터·게이트·지연·수하물 수취대를 받아와요. 출발이 바뀌면 나갈 시각도 다시 계산해요.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="logH">
+    <p class="eyebrow">업데이트 내용</p>
+    <h2 id="logH">버전별로 바뀐 점</h2>
+    <div class="log" style="margin-top:14px">
+      <div class="ver"><div><b>__VER__</b><br><span class="new">최신</span></div>
+        <ul>
+          <li>첫 앱 버전이에요</li>
+          <li>항공권 사진·캡처·PDF를 폰 안에서 읽기 (바코드 + 글자 인식)</li>
+          <li>출발 알림 3단계, 홈 화면 위젯, 휴대폰 알람 맞추기</li>
+          <li>탑승권 크게 보기, 일행 탑승권 묶기, 택시 카드, 도착지 날씨</li>
+          <li>메일·카톡의 e-티켓을 '공유 → Aero'로 바로 넣기</li>
+          <li>인천공항 실시간 정보 (인증키를 넣으면 켜짐)</li>
+        </ul></div>
+    </div>
+    <p class="lead" style="margin-top:10px">새 버전이 나오면 앱을 켤 때 "새 버전이 나왔어요" 창이 떠요. 업데이트를 누르고 받은 파일을 열면 끝이에요. 저장한 항공권은 그대로 남아요.</p>
+  </section>
+
+  <section id="install" aria-labelledby="installH">
+    <p class="eyebrow">설치 방법</p>
+    <h2 id="installH">처음 한 번만 이렇게 해 주세요</h2>
+    <ol class="steps" style="margin-top:14px">
+      <li><div>위의 <b>앱 다운로드</b>를 눌러 Aero.apk를 받아요.</div></li>
+      <li><div>알림창이나 '내 파일 → 다운로드'에서 <b>Aero.apk</b>를 눌러요.</div></li>
+      <li><div>"이 출처의 앱 설치 허용"이 나오면 <b>설정 → 허용</b>을 켜고 뒤로 돌아와요.</div></li>
+      <li><div><b>설치</b>를 누르면 끝! 홈 화면의 Aero 아이콘을 눌러 시작해요.</div></li>
+    </ol>
+    <p class="note">Play 스토어 밖에서 받는 앱이라 "확인되지 않은 앱" 경고가 나올 수 있어요. 이 페이지의 GitHub 저장소에서 직접 만든 파일이 맞으면 설치해도 괜찮아요.</p>
+  </section>
+
+  <section aria-labelledby="safeH">
+    <p class="eyebrow">안전 정보</p>
+    <h2 id="safeH">Aero가 쓰는 권한</h2>
+    <div class="table-wrap" style="margin-top:14px"><table>
+      <thead><tr><th>권한</th><th>왜 필요한가요</th></tr></thead>
+      <tbody>
+        <tr><td>인터넷</td><td>새 버전 확인, 도착지 날씨, 인천공항 운항 정보 받기</td></tr>
+        <tr><td>알림</td><td>출발 알림 3번 (처음 한 번 허용을 물어봐요)</td></tr>
+        <tr><td>재부팅 후 실행</td><td>폰을 껐다 켜도 출발 알림이 그대로 울리게</td></tr>
+        <tr><td>알람 설정</td><td>'휴대폰 알람도 맞추기'를 누를 때만 시계 앱에 알람 추가</td></tr>
+      </tbody></table></div>
+    <p class="lead" style="margin-top:10px"><span class="ok">카메라·위치·연락처·저장공간 권한은 쓰지 않아요.</span> 사진은 폰의 카메라 앱으로 찍어 넘겨받고, 항공권 사진과 정보는 이 폰 안에만 저장돼요.</p>
+  </section>
+
+  <section aria-labelledby="faqH">
+    <p class="eyebrow">자주 묻는 질문</p>
+    <h2 id="faqH">궁금한 점</h2>
+    <div style="margin-top:14px">
+      <details><summary>항공권 사진이 어딘가로 전송되나요?</summary><p>아니요. 바코드와 글자는 폰의 Google Play 서비스 인식 기능으로 폰 안에서 읽어요. 처음 한 번 인식 기능을 내려받을 때만 인터넷이 필요해요.</p></details>
+      <details><summary>글자를 잘못 읽었어요</summary><p>항공편 카드의 '고치기'를 눌러 바로 고칠 수 있어요. 탑승권 바코드가 보이게 찍으면 가장 정확해요.</p></details>
+      <details><summary>인천공항 실시간은 어떻게 켜나요?</summary><p>앱의 인천공항 카드에서 '인증키 넣기'를 누르고 안내대로 공공데이터포털 무료 인증키를 붙여넣으면 돼요.</p></details>
+      <details><summary>아이폰에서도 되나요?</summary><p>지금은 안드로이드 앱만 있어요.</p></details>
+    </div>
+  </section>
+
+  <footer>Aero · 공항·항공사 데이터: OurAirports, OpenFlights(ODbL), mwgg/Airports · 날씨: Open-Meteo<br>
+    <a href="https://github.com/dlsdml99-create/aero">GitHub 저장소</a> · <a href="https://github.com/dlsdml99-create/aero/releases">모든 버전</a></footer>
+</main>
+</body></html>

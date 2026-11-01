@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Aero</string>
+    <string name="widget_desc">공항으로 나갈 시각을 홈 화면에서 바로 봐요</string>
+</resources>

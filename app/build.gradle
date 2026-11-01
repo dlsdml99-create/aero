@@ -1,0 +1,49 @@
+plugins { id 'com.android.application' }
+def run = (System.getenv('RUN_NUMBER') ?: '1').toInteger()
+android {
+    namespace 'com.dlsdml99.aero'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.dlsdml99.aero'
+        minSdk 24
+        targetSdk 34
+        versionCode run
+        // 앱 화면 왼쪽 아래 버전과 같은 값 (빌드할 때 index.html에서 읽음)
+        versionName System.getenv('VERSION_NAME') ?: '1.0'
+        // 실제 폰(ARM)용만 넣어서 용량을 줄임
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+    }
+    signingConfigs {
+        fixed {
+            // 업데이트가 기존 앱 위에 깔리도록 항상 같은 서명 키를 씀
+            storeFile file(System.getenv('KEYSTORE') ?: 'missing.jks')
+            storePassword System.getenv('KEY_PASS') ?: ''
+            keyAlias 'aero'
+            keyPassword System.getenv('KEY_PASS') ?: ''
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.fixed }
+        // 배포용: 안 쓰는 코드·리소스를 지워 용량을 줄이고 더 빠르게
+        release {
+            signingConfig signingConfigs.fixed
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+    packagingOptions { resources { excludes += ['META-INF/*.version', 'META-INF/*.kotlin_module', 'kotlin/**', 'DebugProbesKt.bin'] } }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+dependencies {
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    // 글자·바코드 인식 엔진은 폰의 Google Play 서비스에 있는 것을 빌려 씀 (앱 용량 절약)
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.2'
+    implementation 'com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1'
+}

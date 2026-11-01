@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <queries>
+        <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
+        <package android:name="com.kakao.taxi" />
+        <package android:name="com.grabtaxi.passenger" />
+        <package android:name="com.ubercab" />
+        <package android:name="com.sdu.didi.psnger" />
+        <package android:name="com.dena.automotive.taxibell" />
+    </queries>
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:theme="@style/AppTheme">
+        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode,ocr_korean" />
+        <activity android:name=".MainActivity" android:exported="true"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter android:label="Aero로 항공권 넣기">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter android:label="Aero로 항공권 넣기">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter android:label="Aero로 열기">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
+        <receiver android:name=".AeroWidget" android:exported="true" android:label="Aero 출발 시각">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
+        </receiver>
+        <receiver android:name=".AlertReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>
