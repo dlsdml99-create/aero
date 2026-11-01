@@ -189,6 +189,8 @@ main.wrap{display:flex;flex-direction:column;gap:14px;padding-block:4px calc(112
 
 /* bottom bar */
 nav.bar{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom,0px)}
+.bar .btn{white-space:nowrap}
+@media (max-width:360px){.bar .btn{padding-inline:12px;gap:6px;font-size:14px}}
 nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 .ver{font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--ink-3);margin-right:auto;white-space:nowrap}
 .btn-primary{background:var(--ink);color:var(--paper)}
@@ -346,7 +348,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 <main class="wrap" id="main"></main>
 
 <nav class="bar" aria-label="항공권 추가"><div class="in">
-  <span class="ver" id="ver">v1.10</span>
+  <span class="ver" id="ver">v1.11</span>
   <button class="btn btn-secondary" type="button" data-act="pick-file">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
     캡처·PDF</button>
@@ -362,7 +364,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.10';
+const APP_VERSION = '1.11';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -1663,6 +1665,15 @@ function upsertTrip(legs, passenger, passInfo){
   const same = (a, b) => a.airline === b.airline && a.flight === b.flight && a.date === b.date;
   for (const b of legs) { b.seats = {}; if (b.seat) b.seats[name || '탑승객'] = b.seat; }
   let t = state.trips.find(x => x.legs.some(a => legs.some(b => same(a, b))));
+  /* 같은 편이 없으면, 이어지는 환승 구간(앞 편 도착 공항에서 24시간 안에 출발)이 있는 여정에 묶는다.
+     구간마다 탑승권을 따로 찍거나 직접 넣어도 한 여정의 환승으로 보이게 */
+  const follows = (x, y) => {
+    if (!x.to || x.to !== y.from) return false;
+    const X = resolveLeg(x, 0), Y = resolveLeg(y, 0), xa = X.arrMs != null ? X.arrMs : X.arrEst;
+    if (xa != null && Y.depMs != null) { const gap = Y.depMs - xa; return gap > -2 * 3600000 && gap < 24 * 3600000; }
+    return !!(x.date && y.date) && Math.abs(Date.parse(y.date) - Date.parse(x.date)) <= 864e5;
+  };
+  if (!t) t = state.trips.find(x => x.legs.some(a => legs.some(b => follows(a, b) || follows(b, a))));
   if (t) {
     const main = (t.names || [])[0] || '';
     for (const b of legs) {
@@ -1801,9 +1812,9 @@ refreshLive(false);
 </script>
 
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
 window.APP_INFO.online=!!window.TicketNative;
-window.APP_INFO.version='1.10';
+window.APP_INFO.version='1.11';
 </script>
 <script>
 /* ───── 앱 정보 창 (모든 앱 공통) ─────
