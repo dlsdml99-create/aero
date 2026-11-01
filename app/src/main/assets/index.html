@@ -171,6 +171,14 @@ main.wrap{display:flex;flex-direction:column;gap:14px;padding-block:4px calc(112
 .xfer ol{margin:0;padding-left:18px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
 .xfer p{margin:0;font-size:12px;color:var(--ink-3)}
 .alert{border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;background:var(--bad-soft);color:var(--bad)}
+.alert.miss{display:flex;flex-direction:column;gap:6px;font-weight:500;line-height:1.5;margin:6px 0;border:1px solid var(--bad)}
+.alert.miss b{font-weight:700}.alert.miss .sub{margin-top:4px}
+.alert.miss ol{margin:0;padding-left:18px;color:var(--bad)}
+.note-bar.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.trip-days{display:flex;flex-direction:column;gap:6px}
+.trip-days .stay{display:flex;align-items:center;gap:8px;padding:2px 14px;color:var(--ink-2);font-size:13px}
+.trip-days .stay::before{content:"";width:2px;height:18px;background:var(--rule);margin:0 8px 0 4px}
+.trip-sum{font-size:13px;color:var(--ink-2);margin:-4px 0 10px}
 
 /* other journeys */
 .jlist{display:flex;flex-direction:column;gap:8px}
@@ -348,7 +356,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 <main class="wrap" id="main"></main>
 
 <nav class="bar" aria-label="항공권 추가"><div class="in">
-  <span class="ver" id="ver">v1.11</span>
+  <span class="ver" id="ver">v1.12</span>
   <button class="btn btn-secondary" type="button" data-act="pick-file">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
     캡처·PDF</button>
@@ -364,7 +372,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.11';
+const APP_VERSION = '1.12';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -1177,6 +1185,30 @@ function passView(l, editable){
   </article>`;
 }
 
+/* 여행 전체 일정: 가는 편·오는 편을 날짜 순서로, 사이에 현지에서 며칠 묵는지 */
+function nightsBetween(endMs, startMs, tz){ if (endMs == null || startMs == null) return null; const a = dayKey(endMs, tz), b = dayKey(startMs, tz); return Math.round((Date.parse(b) - Date.parse(a)) / 864e5); }
+function tripDaysView(js, ji){
+  const first = js[0][0], lastJ = js[js.length - 1], last = lastJ[lastJ.length - 1];
+  const endMs = last.arrMs ?? last.arrEst ?? last.depMs, endTz = (apt(last.to) || {}).tz || DEVICE_TZ;
+  let sum = '';
+  if (first.depMs != null && endMs != null) {
+    const tz0 = (apt(first.from) || {}).tz || DEVICE_TZ, days = Math.round((Date.parse(dayKey(endMs, endTz)) - Date.parse(dayKey(first.depMs, tz0))) / 864e5);
+    sum = `${fmtDate(first.depMs, tz0)} ~ ${fmtDate(endMs, endTz)}${days > 0 ? ` · ${days}박 ${days + 1}일` : ''}`;
+  }
+  const rows = [];
+  js.forEach((x, k) => {
+    if (k) {
+      const p = js[k - 1][js[k - 1].length - 1], tz = (apt(p.to) || {}).tz || DEVICE_TZ;
+      const n = nightsBetween(p.arrMs ?? p.arrEst, x[0].depMs, tz);
+      rows.push(`<div class="stay">${esc(aptKo(p.to))}${n != null ? (n > 0 ? `에서 ${n}박` : '에서 당일') : '에서 머물러요'}</div>`);
+    }
+    const tz = (apt(x[0].from) || {}).tz || DEVICE_TZ;
+    const when = x[0].depMs != null ? `${fmtDate(x[0].depMs, tz)} ${fmtTime(x[0].depMs, tz)}` : (x[0].date ? fmtDateStr(x[0].date) : '날짜 미확인');
+    const route = [x[0].from, ...x.map(l => l.to)].join(' → ');
+    rows.push(`<button class="jrow" type="button" data-act="focus" data-j="${k}" aria-current="${k === ji}"><span class="m"><b>${k === 0 ? '가는 편' : k === js.length - 1 && last.to === first.from ? '오는 편' : (k + 1) + '번째 이동'}</b> · ${esc(when)}<br>${esc(x.map(l => l.airline + ' ' + l.flight).join(', '))}${x.length > 1 ? ` · 환승 ${x.length - 1}번` : ''}</span><span class="r">${esc(route)}</span></button>`);
+  });
+  return `<h2 class="sec-title">여행 전체 일정</h2>${sum ? `<p class="trip-sum">${esc(sum)}</p>` : ''}<div class="trip-days">${rows.join('')}</div>`;
+}
 function transferView(a, b){
   const x = transferInfo(a, b), at = aptKo(a.to);
   const label = {ok: '여유 있어요', warn: '서두르면 충분해요', bad: '빠듯해요', unknown: '시각 확인 필요'}[x.level];
@@ -1204,6 +1236,13 @@ function transferView(a, b){
   return `<div class="xfer"><div class="xfer-rail" aria-hidden="true"></div><div class="xfer-body">
     <div class="xfer-top"><b>${esc(at)}에서 ${x.changeAirport ? '공항 이동 환승' : '환승'}</b><span class="pill ${x.level}">${gapTxt ? esc(gapTxt) + ' · ' : ''}${label}</span></div>
     ${x.changeAirport ? `<div class="alert">도착 공항(${esc(a.to)})과 다음 출발 공항(${esc(b.from)})이 달라요</div>` : ''}
+    ${x.level === 'bad' ? `<div class="alert miss"><b>환승 시간이 짧아요${gapTxt ? ` (${esc(gapTxt)})` : ''}</b>
+      <span>비행기에서 승무원에게 "환승이 빠듯해요(Tight connection)"라고 말하면 먼저 내리게 도와주기도 해요.</span>
+      <b class="sub">다음 편을 놓치면</b>
+      <ol><li>환승 구역의 <b>${esc(airlineName(b.airline) || b.airline)} 환승 카운터(Transfer Desk)</b>로 바로 가요</li>
+      <li>한 번에 예약한 항공권이면 보통 항공사가 다음 편으로 <b>무료로</b> 바꿔 줘요. 늦게 도착한 편 때문이라면 식사·숙박도 물어보세요</li>
+      <li>따로 산 항공권이면 다음 편을 새로 사야 할 수 있어요. 예약한 곳(여행사·항공사)에 먼저 연락해요</li>
+      <li>바뀐 편명을 Aero에 다시 넣으면 나갈 시각·알림이 새로 맞춰져요</li></ol></div>` : ''}
     <ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol>
     ${note ? `<p>${note}</p>` : ''}
     ${link}
@@ -1234,6 +1273,8 @@ function render(){
   const {js, ji, j} = journeysOf(t), plan = planFor(t, j);
   const parts = [];
   if (t.example) parts.push(`<div class="note-bar"><span>예시 화면이에요. 실제 저장된 항공권이 아니에요.</span><button class="txt-btn" type="button" data-act="example-off">예시 닫기</button></div>`);
+  { const tight = j.findIndex((l, k) => k && transferInfo(j[k - 1], l).level === 'bad');
+    if (tight > 0) parts.push(`<div class="note-bar bad"><span><b>${esc(aptKo(j[tight].from))} 환승 시간이 짧아요.</b> 아래 환승 안내에서 놓쳤을 때 할 일을 확인하세요.</span></div>`); }
   parts.push(heroView(t, j, plan));
   parts.push(realtimeView(t, j));
   parts.push(timelineView(j, plan));
@@ -1241,7 +1282,7 @@ function render(){
   parts.push(`<h2 class="sec-title">항공편${j.length > 1 ? ` · ${j.length}구간` : ''}</h2>`);
   j.forEach((l, k) => { if (k) parts.push(transferView(j[k - 1], l)); parts.push(passView(l, !t.example)); });
   if (js.length > 1) {
-    parts.push(`<h2 class="sec-title">이 항공권의 여정</h2><div class="jlist">${js.map((x, k) => `<button class="jrow" type="button" data-act="focus" data-j="${k}" aria-current="${k === ji}"><span class="m">${esc(x[0].date ? fmtDateStr(x[0].date) : '날짜 미확인')} · ${esc(x.map(l => l.airline + ' ' + l.flight).join(', '))}</span><span class="r">${esc(x[0].from)} → ${esc(x[x.length - 1].to)}</span></button>`).join('')}</div>`);
+    parts.push(tripDaysView(js, ji));
   }
   parts.push(`<p class="foot-note">항공사·공항 사정에 따라 시각이 바뀔 수 있어요. 출발 전 실시간 운항 정보를 한 번 더 확인하세요.</p>`);
   main.innerHTML = parts.join('');
@@ -1674,6 +1715,16 @@ function upsertTrip(legs, passenger, passInfo){
     return !!(x.date && y.date) && Math.abs(Date.parse(y.date) - Date.parse(x.date)) <= 864e5;
   };
   if (!t) t = state.trips.find(x => x.legs.some(a => legs.some(b => follows(a, b) || follows(b, a))));
+  /* 이어지는 편이 없으면, 도착한 곳에서 45일 안에 다시 떠나는 편(귀국편·다음 도시)도 같은 여행으로 묶는다 */
+  const later = (x, y) => {
+    if (!x.to || x.to !== y.from) return false;
+    const X = resolveLeg(x, 0), Y = resolveLeg(y, 0), xa = X.arrMs != null ? X.arrMs : X.arrEst;
+    if (xa != null && Y.depMs != null) { const gap = Y.depMs - xa; return gap > 0 && gap < 45 * 864e5; }
+    return !!(x.date && y.date) && Date.parse(y.date) >= Date.parse(x.date) && Date.parse(y.date) - Date.parse(x.date) < 45 * 864e5;
+  };
+  /* 한국 공항으로 돌아온 뒤 다시 떠나는 건 다른 여행이에요 (현지에서 이어질 때만 묶음) */
+  const KR = new Set(['ICN', 'GMP', 'PUS', 'CJU', 'TAE', 'CJJ', 'KWJ', 'MWX', 'YNY', 'RSU', 'USN', 'KPO', 'HIN', 'WJU', 'KUV']);
+  if (!t) t = state.trips.find(x => x.legs.some(a => legs.some(b => (later(a, b) && !KR.has(a.to)) || (later(b, a) && !KR.has(a.from)))));
   if (t) {
     const main = (t.names || [])[0] || '';
     for (const b of legs) {
@@ -1812,9 +1863,9 @@ refreshLive(false);
 </script>
 
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
 window.APP_INFO.online=!!window.TicketNative;
-window.APP_INFO.version='1.11';
+window.APP_INFO.version='1.12';
 </script>
 <script>
 /* ───── 앱 정보 창 (모든 앱 공통) ─────
