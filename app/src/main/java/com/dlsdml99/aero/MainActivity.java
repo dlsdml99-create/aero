@@ -504,6 +504,7 @@ public class MainActivity extends Activity {
                     if (a.optString("name").endsWith(".apk")) { url = a.optString("browser_download_url"); break; }
                 }
                 String mine = currentVersion();
+                if (tag.matches("v?[0-9.]+")) js("window.AppInfo&&window.AppInfo.native('" + tag + "')");
                 if (url == null || !newer(tag, mine)) { if (manual) toast("지금 최신 버전이에요 (v" + mine + ")"); return; }
                 final String u = url, notes = o.optString("body", "");
                 runOnUiThread(() -> showUpdate(tag, mine, notes, u));
