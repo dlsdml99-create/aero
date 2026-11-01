@@ -182,6 +182,9 @@ main.wrap{display:flex;flex-direction:column;gap:14px;padding-block:4px calc(112
 .empty{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .empty h2{margin:0;font-size:20px}
 .empty p{margin:0;color:var(--ink-2)}
+.empty-title{margin:0;font-size:22px;line-height:1.3;color:var(--board-text)}
+.empty-sub{margin:0;color:var(--board-dim);font-size:14px}
+.note-bar .txt-btn{color:var(--amber-ink);flex:none}
 .foot-note{font-size:12px;color:var(--ink-3);padding:0 2px;margin:2px 0 0}
 
 /* bottom bar */
@@ -343,7 +346,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 <main class="wrap" id="main"></main>
 
 <nav class="bar" aria-label="항공권 추가"><div class="in">
-  <span class="ver" id="ver">v1.6</span>
+  <span class="ver" id="ver">v1.7</span>
   <button class="btn btn-secondary" type="button" data-act="pick-file">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
     캡처·PDF</button>
@@ -359,7 +362,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -965,10 +968,10 @@ function alertsFor(t){
   }
   return out.sort((a, b) => a.at - b.at);
 }
-function allAlerts(){ const trips = state.trips.length ? state.trips : [exampleTrip()]; return trips.flatMap(alertsFor).filter(a => !state.alertsOff[a.type]); }
+function allAlerts(){ const trips = state.trips; return trips.flatMap(alertsFor).filter(a => !state.alertsOff[a.type]); }
 function nextLeave(realOnly){
   const now = Date.now(); let best = null;
-  for (const t of (state.trips.length || realOnly ? state.trips : [exampleTrip()])) for (const j of journeysOf(t).js) { const p = planFor(t, j); if (p && p.leaveMs > now - 3600000 && (!best || p.leaveMs < best.p.leaveMs)) best = {t, j, p}; }
+  for (const t of state.trips) for (const j of journeysOf(t).js) { const p = planFor(t, j); if (p && p.leaveMs > now - 3600000 && (!best || p.leaveMs < best.p.leaveMs)) best = {t, j, p}; }
   return best;
 }
 function weatherFor(t, l){
@@ -1037,7 +1040,7 @@ function exampleTrip(){
   };
 }
 function currentTrip(){
-  if (!state.trips.length) return exampleTrip();
+  if (!state.trips.length) return state.showExample ? exampleTrip() : null;
   return state.trips.find(t => t.id === state.current) || state.trips[0];
 }
 function passesFor(t, j){ const keys = new Set(j.map(legKey)); return (t.passes || []).filter(p => p.legs.some(k => keys.has(k))); }
@@ -1205,14 +1208,30 @@ function transferView(a, b){
   </div></div>`;
 }
 
+function emptyView(){
+  return `<section class="board empty-board" aria-label="항공권 넣기">
+    <span class="eyebrow">시작하기</span>
+    <h2 class="empty-title">아직 저장된 항공권이 없어요</h2>
+    <p class="empty-sub">탑승권이나 e-티켓을 찍거나, 캡처·PDF를 골라 주세요. 편명·시각·좌석을 자동으로 읽고, 공항으로 나갈 시각을 알려드려요.</p>
+    <div class="board-actions">
+      <button class="btn btn-amber" type="button" data-act="pick-cam">항공권 찍기</button>
+      <button class="btn btn-board" type="button" data-act="pick-file">캡처·PDF 고르기</button>
+    </div>
+    <div class="board-more">
+      <button class="mini" type="button" data-act="manual">직접 입력</button>
+      <button class="mini" type="button" data-act="example-on">예시로 둘러보기</button>
+    </div>
+  </section>
+  <p class="foot-note">항공권 정보와 사진은 이 폰에만 저장돼요. ${NATIVE ? '메일·카톡의 e-티켓을 \'공유 → Aero\'로 보내도 바로 들어와요.' : ''}</p>`;
+}
 function render(){
   const t = currentTrip(), main = $('#main');
   $('#trip-count').textContent = state.trips.length;
   const n = allAlerts().length, badge = $('#alert-count'); badge.textContent = n; badge.hidden = !n;
-  if (!t) { main.innerHTML = ''; return; }
+  if (!t) { main.innerHTML = emptyView(); return; }
   const {js, ji, j} = journeysOf(t), plan = planFor(t, j);
   const parts = [];
-  if (t.example) parts.push(`<div class="note-bar"><span>예시 항공권이에요. 내 항공권을 찍으면 여기에 나와요.</span></div>`);
+  if (t.example) parts.push(`<div class="note-bar"><span>예시 화면이에요. 실제 저장된 항공권이 아니에요.</span><button class="txt-btn" type="button" data-act="example-off">예시 닫기</button></div>`);
   parts.push(heroView(t, j, plan));
   parts.push(realtimeView(t, j));
   parts.push(timelineView(j, plan));
@@ -1266,7 +1285,7 @@ function tripsSheet(){
 }
 
 function alertsSheet(){
-  const list = (state.trips.length ? state.trips : [exampleTrip()]).flatMap(alertsFor).sort((a, b) => a.at - b.at);
+  const list = state.trips.flatMap(alertsFor).sort((a, b) => a.at - b.at);
   const n = nextLeave();
   const rows = list.slice(0, 12).map(a => {
     const off = !!state.alertsOff[a.type];
@@ -1274,7 +1293,7 @@ function alertsSheet(){
   }).join('');
   openSheet(`<div class="sheet-head"><h2>알림·위젯</h2>${X_BTN}</div>
     <p class="msg">출발 전에 세 번 알려줘요. 스위치는 같은 종류의 알림을 모두 켜고 꺼요.</p>
-    ${rows ? `<ul class="list">${rows}</ul>` : '<p class="msg">다가오는 알림이 없어요.</p>'}
+    ${rows ? `<ul class="list">${rows}</ul>` : `<p class="msg">${state.trips.length ? '다가오는 알림이 없어요.' : '항공권을 넣으면 출발 전에 세 번 알려드려요.'}</p>`}
     <p class="foot-note">${NATIVE ? '알림은 이 시각에 자동으로 울려요.' : '미리보기에서는 알림이 울리지 않아요. 앱에서는 이 시각에 자동으로 알려줘요.'}</p>
     <h3 class="sub-h">홈 화면 위젯</h3>
     ${n ? `<div class="widget-mock" aria-label="위젯 미리보기"><small>공항 출발 · ${esc(fmtDate(n.p.leaveMs, n.p.tz))}</small><span class="t num">${esc(fmtTime(n.p.leaveMs, n.p.tz))}</span><span>${esc(n.p.f.airline)} ${esc(n.p.f.flight)} · ${esc(aptKo(n.p.f.from))} ${esc(termLabel(depTerminal(n.p.f)))}</span><span>${esc(fmtUntil(n.p.leaveMs))}</span></div>` : '<p class="msg">다가오는 출발이 없어요.</p>'}
@@ -1723,6 +1742,8 @@ document.addEventListener('click', e => {
   if (act === 'pick-file') { closeSheet(); if (NATIVE && NATIVE.pick) return NATIVE.pick('file'); return $('#f-file').click(); }
   if (act === 'trips') return tripsSheet();
   if (act === 'manual') return manualSheet();
+  if (act === 'example-on') { state.showExample = true; render(); return window.scrollTo({top: 0}); }
+  if (act === 'example-off') { state.showExample = false; return render(); }
   if (act === 'alerts') return alertsSheet();
   if (act === 'icn-key') return icnKeySheet();
   if (act === 'save-icn-key') { state.icnKey = ($('#icn-key').value || '').trim(); save(); closeSheet(); refreshLive(true); return toast(state.icnKey ? '인증키를 넣었어요. 운항 정보를 받아올게요' : '인증키를 지웠어요'); }
