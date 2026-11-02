@@ -356,7 +356,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 <main class="wrap" id="main"></main>
 
 <nav class="bar" aria-label="항공권 추가"><div class="in">
-  <span class="ver" id="ver">v1.12</span>
+  <span class="ver" id="ver">v1.13</span>
   <button class="btn btn-secondary" type="button" data-act="pick-file">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
     캡처·PDF</button>
@@ -372,7 +372,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.12';
+const APP_VERSION = '1.13';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -990,10 +990,21 @@ function weatherFor(t, l){
   return (t.wx && t.wx[legKey(l)]) || null;
 }
 function checklistFor(t, j){
-  const dest = apt(j[j.length - 1].to);
-  if (!dest || dest.cc === 'KR') return null;
+  const dest = apt(j[j.length - 1].to), orig = apt(j[0].from);
+  if (!dest) return null;
   const cc = dest.cc, items = [];
   const add = (id, text, link, sub) => items.push({id, text, link, sub});
+  /* 한국으로 돌아올 때: 가는 편의 '입국 준비'처럼 '귀국 준비' (관세청·질병관리청 기준, 2026-11-01 확인) */
+  if (cc === 'KR') {
+    if (!orig || orig.cc === 'KR') return null;
+    add('kr:duty', '면세 한도 확인 · 1인 800달러', 'https://www.customs.go.kr/', '술은 따로 2L·400달러까지(병 수 제한 없음), 향수 100ml까지. 넘으면 자진 신고가 유리해요');
+    add('kr:declare', '신고할 물건이 있으면 세관 신고', 'https://www.customs.go.kr/', '없으면 신고서를 안 써도 돼요. 관세청 앱으로 모바일 신고도 돼요');
+    add('kr:qcode', 'Q-CODE 건강상태 신고 해당되는지 확인', 'https://qcode.kdca.go.kr/', '중점검역관리지역에 머물렀거나 거쳐 왔으면 꼭, 열·기침이 있으면 신고. 지역은 분기마다 바뀌어요');
+    add('kr:food', '고기·과일·씨앗은 들여올 수 없어요', null, '육포·소시지 같은 가공품도 안 돼요. 걸리면 과태료');
+    add('kr:krw', '집에 갈 교통편·남은 외화 정리', null, '공항철도·리무진 시간, 남은 동전은 공항 기부함에');
+    const check = t.check || {};
+    return {cc, home: true, items, done: items.filter(x => check[x.id]).length, total: items.length};
+  }
   const e = ENTRY[cc] || (SCHENGEN.has(cc) ? ENTRY.EU : null);
   if (e) { add('visa:' + cc, e.visa); (e.forms || []).forEach((f, i) => add(`form:${cc}:${i}`, f[0], f[2], f[1])); }
   else add('visa:' + cc, `${regionKo(cc)} 비자·입국 조건 확인`, 'https://www.0404.go.kr/', '외교부 해외안전여행에서 확인');
@@ -1151,7 +1162,7 @@ function destView(t, j){
     <div class="dest-top"><div class="where"><small>도착</small><b>${esc(aptKo(last.to))}</b><span>${esc(aptPlace(last.to))}</span></div>${wx}</div>
     <p class="dest-sub">${at != null ? `${esc(fmtDate(at, B.tz))} ${esc(fmtTime(at, B.tz))} 도착${last.arrMs == null ? ' (예상)' : ''} · ` : ''}${esc(tzDiffText(B.tz, at ?? Date.now()))}</p>
     <div class="dest-acts">
-      ${ck ? `<button class="row-btn" type="button" data-act="checklist">입국 준비 <b>${ck.done}/${ck.total}</b></button>` : ''}
+      ${ck ? `<button class="row-btn" type="button" data-act="checklist">${ck.home ? '귀국 준비' : '입국 준비'} <b>${ck.done}/${ck.total}</b></button>` : ''}
       <button class="row-btn${ck ? '' : ' full'}" type="button" data-act="share-arr">도착 시각 보내기</button>
     </div>
   </section>`;
@@ -1355,6 +1366,10 @@ function checklistSheet(){
     ppStatus = `<span class="st ${ok ? 'ok' : 'bad'}">${ok ? '출발일 기준 6개월 넘게 남았어요' : '출발일 기준 6개월이 안 남았어요. 입국이 거절될 수 있어요'}</span>`;
   }
   const items = ck.items.map(x => `<li><input type="checkbox" id="ck-${esc(x.id)}" data-check="${esc(x.id)}" ${check[x.id] ? 'checked' : ''}><label for="ck-${esc(x.id)}">${esc(x.text)}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">공식 사이트 ↗</a>` : ''}</label></li>`).join('');
+  if (ck.home) return openSheet(`<div class="sheet-head"><h2>귀국 준비 · 대한민국</h2>${X_BTN}</div>
+    <p class="msg">관세청·질병관리청 안내 기준 · 2026년 11월 1일 확인 · 규정은 바뀔 수 있으니 공식 사이트에서 한 번 더 확인하세요.</p>
+    <ul class="checks">${items}</ul>
+    <a class="txt-btn" href="https://www.customs.go.kr/" target="_blank" rel="noopener">관세청 여행자 안내 보기 ↗</a>`, '귀국 준비');
   openSheet(`<div class="sheet-head"><h2>입국 준비 · ${esc(regionKo(ck.cc))}</h2>${X_BTN}</div>
     <p class="msg">대한민국 여권 기준 · ${esc('2026년 10월 31일')} 확인 · 규정은 바뀔 수 있으니 출발 전 공식 사이트에서 한 번 더 확인하세요.</p>
     <ul class="checks">${items}</ul>
@@ -1863,9 +1878,9 @@ refreshLive(false);
 </script>
 
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
 window.APP_INFO.online=!!window.TicketNative;
-window.APP_INFO.version='1.12';
+window.APP_INFO.version='1.13';
 </script>
 <script>
 /* ───── 앱 정보 창 (모든 앱 공통) ─────
