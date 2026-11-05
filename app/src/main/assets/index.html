@@ -321,6 +321,15 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 .widget-mock small{font-size:11px;font-weight:700;color:var(--board-dim)}
 .widget-mock .t{font-family:var(--f-display);font-size:40px;font-weight:600;color:var(--board-ink);line-height:1.05}
 .widget-mock span{font-size:13px}
+.df-open{width:100%;margin:2px 0 4px}
+.df-sum{border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.df-sum.ok{background:var(--paper-2)}.df-sum.over{background:#FDECEA;color:#8A1C12}.df-sum span{font-size:13px}
+.df-list{list-style:none;margin:0;padding:0}.df-list li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.df-list small{color:var(--ink-2)}
+.df-add{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.df-add input{flex:1 1 120px;min-width:0;border:1px solid var(--rule);background:var(--paper);border-radius:10px;padding:8px 10px;min-height:44px;color:var(--ink);font-size:16px}
+.seg{display:flex;gap:4px;flex:1 1 100%}.seg-b{flex:1;min-height:36px;border:1px solid var(--rule);background:var(--paper);border-radius:10px;color:var(--ink);font-weight:700}
+.seg-b[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .checks li{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--rule)}
 .checks li:last-child{border-bottom:0}
@@ -356,7 +365,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 <main class="wrap" id="main"></main>
 
 <nav class="bar" aria-label="항공권 추가"><div class="in">
-  <span class="ver" id="ver">v1.13</span>
+  <span class="ver" id="ver">v1.14</span>
   <button class="btn btn-secondary" type="button" data-act="pick-file">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
     캡처·PDF</button>
@@ -372,7 +381,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.13';
+const APP_VERSION = '1.14';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -1003,7 +1012,7 @@ function checklistFor(t, j){
     add('kr:food', '고기·과일·씨앗은 들여올 수 없어요', null, '육포·소시지 같은 가공품도 안 돼요. 걸리면 과태료');
     add('kr:krw', '집에 갈 교통편·남은 외화 정리', null, '공항철도·리무진 시간, 남은 동전은 공항 기부함에');
     const check = t.check || {};
-    return {cc, home: true, items, done: items.filter(x => check[x.id]).length, total: items.length};
+    return {cc, home: true, from: orig.cc, items, done: items.filter(x => check[x.id]).length, total: items.length};
   }
   const e = ENTRY[cc] || (SCHENGEN.has(cc) ? ENTRY.EU : null);
   if (e) { add('visa:' + cc, e.visa); (e.forms || []).forEach((f, i) => add(`form:${cc}:${i}`, f[0], f[2], f[1])); }
@@ -1368,6 +1377,7 @@ function checklistSheet(){
   const items = ck.items.map(x => `<li><input type="checkbox" id="ck-${esc(x.id)}" data-check="${esc(x.id)}" ${check[x.id] ? 'checked' : ''}><label for="ck-${esc(x.id)}">${esc(x.text)}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">공식 사이트 ↗</a>` : ''}</label></li>`).join('');
   if (ck.home) return openSheet(`<div class="sheet-head"><h2>귀국 준비 · 대한민국</h2>${X_BTN}</div>
     <p class="msg">관세청·질병관리청 안내 기준 · 2026년 11월 1일 확인 · 규정은 바뀔 수 있으니 공식 사이트에서 한 번 더 확인하세요.</p>
+    <button class="btn btn-secondary df-open" type="button" data-act="dutycalc">🧮 면세 한도 계산기${(t.df || []).length ? ` · ${(t.df || []).length}개 담음` : ''}</button>
     <ul class="checks">${items}</ul>
     <a class="txt-btn" href="https://www.customs.go.kr/" target="_blank" rel="noopener">관세청 여행자 안내 보기 ↗</a>`, '귀국 준비');
   openSheet(`<div class="sheet-head"><h2>입국 준비 · ${esc(regionKo(ck.cc))}</h2>${X_BTN}</div>
@@ -1375,6 +1385,54 @@ function checklistSheet(){
     <ul class="checks">${items}</ul>
     <div class="pp"><label for="pp-exp">여권 만료일</label><input id="pp-exp" type="date" value="${esc(state.passport || '')}">${ppStatus}</div>
     <a class="txt-btn" href="https://www.0404.go.kr/" target="_blank" rel="noopener">외교부 해외안전여행에서 자세히 보기 ↗</a>`, '입국 준비');
+}
+
+/* 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 (환율은 open.er-api.com 공개 환율, 12시간에 한 번만 받음 · 보내는 정보 없음) */
+const CC_CUR = {JP:'JPY',CN:'CNY',TW:'TWD',HK:'HKD',MO:'MOP',TH:'THB',VN:'VND',PH:'PHP',SG:'SGD',MY:'MYR',ID:'IDR',MN:'MNT',IN:'INR',
+  US:'USD',GU:'USD',MP:'USD',CA:'CAD',MX:'MXN',GB:'GBP',CH:'CHF',CZ:'CZK',HU:'HUF',PL:'PLN',TR:'TRY',AE:'AED',QA:'QAR',AU:'AUD',NZ:'NZD',
+  FR:'EUR',DE:'EUR',IT:'EUR',ES:'EUR',NL:'EUR',AT:'EUR',GR:'EUR',PT:'EUR',FI:'EUR',IE:'EUR',BE:'EUR',HR:'EUR'};
+const DF_LIMIT = 800;
+let dfFx = (() => { try { return JSON.parse(localStorage.getItem('aero-fx') || 'null'); } catch(e){ return null; } })();
+async function loadFx(){
+  if (dfFx && Date.now() - dfFx.at < 12 * 3600000) return dfFx;
+  try { const r = await fetch('https://open.er-api.com/v6/latest/USD'); const d = await r.json();
+    if (d && d.rates && d.rates.KRW) { dfFx = {at: Date.now(), rates: d.rates}; try { localStorage.setItem('aero-fx', JSON.stringify(dfFx)); } catch(e){} }
+  } catch(e){}
+  return dfFx;
+}
+const toUsd = (a, c) => c === 'USD' ? a : (dfFx && dfFx.rates[c] ? a / dfFx.rates[c] : null);
+const nf = n => Math.round(n).toLocaleString('ko-KR');
+function dutyCalcSheet(){
+  const t = currentTrip(); if (!t) return;
+  const {j} = journeysOf(t), ck = checklistFor(t, j);
+  const local = CC_CUR[ck && ck.from] || 'USD', curs = [...new Set([local, 'USD', 'KRW'])];
+  if (!curs.includes(t.dfCur)) t.dfCur = local;
+  const list = t.df || [];
+  let sum = 0, unknown = false;
+  const rows = list.map((x, i) => { const u = toUsd(x.a, x.c); if (u == null) unknown = true; else sum += u;
+    return `<li><span>${esc(x.a.toLocaleString('ko-KR'))} ${esc(x.c)}${u != null && x.c !== 'USD' ? ` <small>≈ ${esc(nf(u))}달러</small>` : ''}</span><button class="txt-btn" type="button" data-act="df-del" data-i="${i}">빼기</button></li>`; }).join('');
+  const over = sum > DF_LIMIT, krw = dfFx ? sum * dfFx.rates.KRW : null;
+  const status = !list.length ? '<p class="msg">산 물건 값을 하나씩 넣어 주세요. 영수증 금액 그대로 넣으면 돼요.</p>'
+    : unknown ? '<p class="msg">환율을 받아오지 못했어요. 인터넷이 되면 다시 열어 주세요. (달러로 넣으면 바로 계산돼요)</p>'
+    : `<div class="df-sum ${over ? 'over' : 'ok'}" role="status"><b>합계 ${nf(sum)}달러${krw ? ` · 약 ${nf(krw)}원` : ''}</b><span>${over
+      ? `한도보다 ${nf(sum - DF_LIMIT)}달러 넘어요. 세관에 자진 신고하면 관세를 30%(최대 20만 원) 덜 내요`
+      : `한도까지 ${nf(DF_LIMIT - sum)}달러 남았어요`}</span></div>`;
+  openSheet(`<div class="sheet-head"><h2>면세 한도 계산기</h2>${X_BTN}</div>
+    <p class="msg">1인 ${DF_LIMIT}달러까지 면세 · 술(2L·400달러)·향수(100ml)는 따로 쳐요. 한 사람 몫만 넣어 주세요.</p>
+    ${status}
+    ${rows ? `<ul class="df-list">${rows}</ul>` : ''}
+    <div class="df-add"><div class="seg" role="group" aria-label="통화">${curs.map(c => `<button type="button" class="seg-b" data-act="df-cur" data-c="${c}" aria-pressed="${c === t.dfCur}">${c}</button>`).join('')}</div>
+      <input id="df-amt" type="text" inputmode="decimal" placeholder="금액 (${esc(t.dfCur)})" aria-label="산 물건 금액" autocomplete="off">
+      <button class="btn btn-primary" type="button" data-act="df-add">더하기</button></div>
+    <div class="sheet-actions">${list.length ? '<button class="btn btn-secondary" type="button" data-act="df-clear">모두 지우기</button>' : ''}<button class="btn btn-secondary" type="button" data-act="checklist">귀국 준비로</button></div>
+    <p class="foot-note">환율은 공개 환율(open.er-api.com)을 12시간에 한 번 받아요. 실제 세금은 세관 기준 환율로 계산돼요.</p>`, '면세 한도 계산기');
+  if (!dfFx || Date.now() - dfFx.at > 12 * 3600000) loadFx().then(f => { const inp = $('#df-amt'); if (f && inp && !inp.value) dutyCalcSheet(); });
+}
+function dfAdd(){
+  const t = currentTrip(), inp = $('#df-amt'); if (!t || !inp) return;
+  const a = parseFloat(String(inp.value).replace(/,/g, '').replace(/[^0-9.]/g, ''));
+  if (!(a > 0) || a > 1e12) { toast('금액을 숫자로 넣어 주세요'); inp.focus(); return; }
+  (t.df = t.df || []).push({a: Math.round(a * 100) / 100, c: t.dfCur || 'USD'}); save(); dutyCalcSheet(); const n = $('#df-amt'); if (n) n.focus();
 }
 
 let shareMsg = '';
@@ -1793,6 +1851,11 @@ document.addEventListener('click', e => {
   if (act === 'save-icn-key') { state.icnKey = ($('#icn-key').value || '').trim(); save(); closeSheet(); refreshLive(true); return toast(state.icnKey ? '인증키를 넣었어요. 운항 정보를 받아올게요' : '인증키를 지웠어요'); }
   if (act === 'check-update') { if (NATIVE && NATIVE.checkUpdate) NATIVE.checkUpdate(); return; }
   if (act === 'checklist') return checklistSheet();
+  if (act === 'dutycalc') return dutyCalcSheet();
+  if (act === 'df-cur') { if (t) { t.dfCur = el.dataset.c; save(); } return dutyCalcSheet(); }
+  if (act === 'df-add') return dfAdd();
+  if (act === 'df-del') { if (t && t.df) { t.df.splice(+el.dataset.i, 1); save(); } return dutyCalcSheet(); }
+  if (act === 'df-clear') { if (t) { t.df = []; save(); } return dutyCalcSheet(); }
   if (act === 'share-arr') return shareSheet();
   if (act === 'taxi') return taxiOverlay();
   if (act === 'pass-view') { passIdx = 0; passMode = null; return passOverlay(); }
@@ -1862,7 +1925,7 @@ document.addEventListener('change', e => {
   if (el.dataset.alert) { state.alertsOff[el.dataset.alert] = !el.checked; save(); render(); return alertsSheet(); }
   if (el.id === 'pp-exp') { state.passport = cleanDate(el.value); save(); return checklistSheet(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#layer').firstChild) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#layer').firstChild) closeSheet(); if (e.key === 'Enter' && e.target && e.target.id === 'df-amt') dfAdd(); });
 for (const id of ['f-cam', 'f-file']) $('#' + id).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; handleFile(f); });
 document.addEventListener('paste', e => { const f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0]; if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) { e.preventDefault(); handleFile(f); } });
 let dropHint = null;
@@ -1877,16 +1940,18 @@ syncNative();
 refreshLive(false);
 </script>
 
+
+
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요."};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
 window.APP_INFO.online=!!window.TicketNative;
-window.APP_INFO.version='1.13';
+window.APP_INFO.version='1.14';
 </script>
 <script>
 /* ───── 앱 정보 창 (모든 앱 공통) ─────
    왼쪽 아래 버전을 누르면: 앱 이름·버전, 최신인지, 새 버전 확인, 업데이트 내용, 개인정보.
    새 버전이 있으면 버전 글씨가 노란색으로 바뀐다.
-   설정: window.APP_INFO = { name, repo, version, online, mount, notes:[{v,d,items}], privacy }
+   설정: window.APP_INFO = { name, repo, version, online, mount, notes:[{v,d,items}], privacy, backup }
    - version: '1.8' 또는 함수. 'current'인 업데이트 항목은 지금 버전으로 표시
    - online: 앱(APK) 안이면 true. 미리보기에서는 인터넷을 쓰지 않음
    - mount: 이미 있는 버전 글씨의 CSS 선택자 (없으면 왼쪽 아래에 새로 만듦)
@@ -1975,11 +2040,116 @@ window.APP_INFO.version='1.13';
     'button:focus-visible,a:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}';
   var isOpen = false;
   function statusHTML() {
-    if (!C.online) return '미리보기에서는 새 버전을 확인하지 않아요. 앱에서는 자동으로 확인해요.';
+    if (!C.online) return C.web ? '웹앱은 열 때마다 저절로 최신 버전으로 바뀌어요.' : '미리보기에서는 새 버전을 확인하지 않아요. 앱에서는 자동으로 확인해요.';
     if (checking) return '새 버전을 확인하는 중이에요…';
     if (hasUpdate()) return '새 버전 <b>v' + esc(norm(latest.v)) + '</b>이 나왔어요.';
     if (failed && !latest) return '새 버전을 확인하지 못했어요. 인터넷 연결을 확인해 주세요.';
     return latest ? '지금 쓰는 버전이 최신이에요.' : '새 버전 확인을 눌러 주세요.';
+  }
+  /* ── 내 데이터 백업: 이 기기에 저장된 것(설정·기록·사진)을 파일 하나로 저장하고 다시 불러오기.
+     파일은 사용자가 고른 곳(내 파일·드라이브 등)에만 저장되고, 앱이 인터넷으로 보내지 않는다.
+     설정: APP_INFO.backup = { keys:['이름', '접두어*'], idb:[{db, store}], bridge:'Android', save:fn(name,text)->Promise }  ── */
+  var B = C.backup || null, bk = { msg: '', busy: false, pending: null };
+  var bkBridge = function () { var b = B && B.bridge && window[B.bridge]; return b && typeof b.backupSave === 'function' ? b : null; };
+  function lsKeys() {
+    var out = [];
+    try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('appinfo.') !== 0 && (B.keys || []).some(function (p) { return k === p || (p.slice(-1) === '*' && k.indexOf(p.slice(0, -1)) === 0); })) out.push(k); } } catch (e) { /* 저장 공간 없음 */ }
+    return out;
+  }
+  function toPlain(v) {
+    if (v instanceof Blob) return new Promise(function (res) { var r = new FileReader(); r.onload = function () { res({ __blob: String(r.result) }); }; r.onerror = function () { res(null); }; r.readAsDataURL(v); });
+    if (Array.isArray(v)) return Promise.all(v.map(toPlain));
+    if (v && typeof v === 'object' && !(v instanceof Date)) { var ks = Object.keys(v); return Promise.all(ks.map(function (k) { return toPlain(v[k]); })).then(function (vs) { var o = {}; ks.forEach(function (k, i) { o[k] = vs[i]; }); return o; }); }
+    return Promise.resolve(v);
+  }
+  function fromPlain(v) {
+    if (Array.isArray(v)) return v.map(fromPlain);
+    if (v && typeof v === 'object') {
+      if (typeof v.__blob === 'string' && Object.keys(v).length === 1) { try { var p = v.__blob.split(','), bin = atob(p[1]), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: (p[0].match(/^data:([^;]+)/) || [])[1] || '' }); } catch (e) { return null; } }
+      var o = {}; Object.keys(v).forEach(function (k) { o[k] = fromPlain(v[k]); }); return o;
+    }
+    return v;
+  }
+  function idbOpen(name, store) {
+    return new Promise(function (res) {
+      try { var r = indexedDB.open(name); r.onupgradeneeded = function () { try { r.result.createObjectStore(store); } catch (e) { /* 이미 있음 */ } }; r.onsuccess = function () { res(r.result); }; r.onerror = function () { res(null); }; } catch (e) { res(null); }
+    });
+  }
+  function idbDump(d) {
+    return idbOpen(d.db, d.store).then(function (db) {
+      if (!db || !db.objectStoreNames.contains(d.store)) return [];
+      return new Promise(function (res) {
+        var out = []; try { var q = db.transaction(d.store).objectStore(d.store).openCursor();
+          q.onsuccess = function () { var c = q.result; if (c) { out.push([c.key, c.value]); c.continue(); } else res(out); }; q.onerror = function () { res(out); };
+        } catch (e) { res(out); }
+      }).then(function (rows) { db.close(); return Promise.all(rows.map(function (r) { return toPlain(r[1]).then(function (v) { return [r[0], v]; }); })); });
+    });
+  }
+  function idbLoad(d, rows) {
+    return idbOpen(d.db, d.store).then(function (db) {
+      if (!db || !db.objectStoreNames.contains(d.store)) return;
+      return new Promise(function (res) {
+        try { var tx = db.transaction(d.store, 'readwrite'), s = tx.objectStore(d.store); s.clear(); (rows || []).forEach(function (r) { s.put(fromPlain(r[1]), r[0]); }); tx.oncomplete = function () { db.close(); res(); }; tx.onerror = function () { db.close(); res(); }; } catch (e) { res(); }
+      });
+    });
+  }
+  function bkSet(m, busy) { bk.msg = m; bk.busy = !!busy; if (isOpen) render(); }
+  function bkName() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return C.name + '-백업-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.json'; }
+  function bkSave() {
+    if (bk.busy) return; bkSet('백업 파일을 만드는 중이에요…', true);
+    var ls = {}; lsKeys().forEach(function (k) { ls[k] = localStorage.getItem(k); });
+    Promise.all((B.idb || []).map(idbDump)).then(function (dumps) {
+      var idb = {}; (B.idb || []).forEach(function (d, i) { idb[d.db + '/' + d.store] = dumps[i]; });
+      var text = JSON.stringify({ app: C.name, repo: C.repo, version: cur(), at: new Date().toISOString(), ls: ls, idb: idb }), name = bkName(), br = bkBridge();
+      if (br) { bkSet('저장할 곳을 골라 주세요 (내 파일·드라이브 등)', true); br.backupSave(name, text); return; }
+      if (typeof B.save === 'function') { Promise.resolve(B.save(name, text)).then(function (ok) { bkDone(ok !== false, ok === false ? 'cancel' : ''); }, function () { bkDone(false); }); return; }
+      var blob = new Blob([text], { type: 'application/json' }), f = window.File ? new File([blob], name, { type: 'application/json' }) : null;
+      if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: name }).then(function () { bkDone(true); }, function (e) { bkDone(false, e && e.name === 'AbortError' ? 'cancel' : ''); }); return; }
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000); bkDone(true);
+    }, function () { bkDone(false); });
+  }
+  function bkDone(ok, why) { bkSet(ok ? '백업 파일을 저장했어요. 새 폰에서는 이 화면의 "백업 불러오기"로 넣으면 돼요.' : why === 'cancel' ? '' : '백업 파일을 저장하지 못했어요. 다시 해 주세요.'); }
+  function bkOpen() {
+    if (bk.busy) return; bk.pending = null;
+    var br = bkBridge(); if (br && typeof br.backupOpen === 'function') { bkSet('백업 파일을 골라 주세요', true); br.backupOpen(); return; }
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,text/plain,application/octet-stream,.json'; inp.style.display = 'none'; document.body.appendChild(inp);
+    inp.addEventListener('change', function () { var f = inp.files && inp.files[0]; inp.remove(); if (!f) return; var r = new FileReader(); r.onload = function () { bkOpened(String(r.result)); }; r.onerror = function () { bkOpened(null); }; r.readAsText(f); });
+    inp.click();
+  }
+  function bkOpened(text) {
+    if (text == null) { bkSet(''); return; }
+    var o = null; try { o = JSON.parse(text); } catch (e) { o = null; }
+    if (!o || typeof o.ls !== 'object' || !o.ls) { bkSet('이 파일은 백업 파일이 아니에요.'); return; }
+    if (o.repo !== C.repo) { bkSet('이 파일은 ' + (o.app ? '“' + o.app + '” 앱의' : '다른 앱의') + ' 백업이에요. ' + C.name + ' 백업 파일을 골라 주세요.'); return; }
+    bk.pending = o; bkSet('');
+  }
+  var bkMatch = function (k) { return (B.keys || []).some(function (p) { return k === p || (p.slice(-1) === '*' && String(k).indexOf(p.slice(0, -1)) === 0); }); };
+  function bkApply() {
+    var o = bk.pending; if (!o) return; bkSet('불러오는 중이에요…', true);
+    var SP = Storage.prototype, set0 = SP.setItem, rm0 = SP.removeItem, old = {};
+    lsKeys().forEach(function (k) { old[k] = localStorage.getItem(k); });
+    try { lsKeys().forEach(function (k) { rm0.call(localStorage, k); });
+      Object.keys(o.ls).forEach(function (k) { if (typeof o.ls[k] === 'string' && bkMatch(k)) set0.call(localStorage, k, o.ls[k]); });
+    } catch (e) {
+      try { lsKeys().forEach(function (k) { rm0.call(localStorage, k); }); Object.keys(old).forEach(function (k) { set0.call(localStorage, k, old[k]); }); } catch (e2) { /* 무시 */ }
+      bk.pending = null; bkSet('저장 공간이 부족해서 불러오지 못했어요. 원래 기록은 그대로예요.'); return;
+    }
+    /* 다시 열리기 전에 앱이 예전 기록을 덮어쓰지 못하게 잠금 */
+    SP.setItem = function (k, v) { if (this === localStorage && bkMatch(k)) return; return set0.apply(this, arguments); };
+    SP.removeItem = function (k) { if (this === localStorage && bkMatch(k)) return; return rm0.apply(this, arguments); };
+    Promise.all((B.idb || []).map(function (d) { var rows = o.idb && o.idb[d.db + '/' + d.store]; return rows ? idbLoad(d, rows) : Promise.resolve(); })).then(function () {
+      bkSet('다 불러왔어요! 잠깐 뒤 다시 열려요.', true); setTimeout(function () { try { location.reload(); } catch (e) { /* 무시 */ } }, 700);
+    });
+  }
+  function bkHTML() {
+    if (!B) return '';
+    var p = bk.pending, when = p && p.at ? new Date(p.at) : null;
+    return '<p class="lbl">내 데이터 백업</p>' +
+      (p ? '<p class="hint">' + esc((when && !isNaN(when) ? (when.getMonth() + 1) + '월 ' + when.getDate() + '일 ' : '') + '백업 (v' + (p.version || '?') + ')') + '을 불러오면 지금 이 폰의 ' + esc(C.name) + ' 기록이 백업 내용으로 바뀌어요.</p>' +
+        '<div class="row"><button class="btn main" type="button" data-bk="apply"' + (bk.busy ? ' disabled' : '') + '>불러오기</button><button class="btn" type="button" data-bk="cancel">취소</button></div>'
+      : '<p class="hint">폰을 바꾸거나 앱을 지우기 전에 파일로 저장해 두세요. 파일은 내가 고른 곳에만 저장되고 인터넷으로 보내지 않아요.</p>' +
+        '<div class="row"><button class="btn" type="button" data-bk="save"' + (bk.busy ? ' disabled' : '') + '>백업 파일로 저장</button><button class="btn" type="button" data-bk="open"' + (bk.busy ? ' disabled' : '') + '>백업 불러오기</button></div>') +
+      (bk.msg ? '<p class="hint" role="status">' + esc(bk.msg) + '</p>' : '');
   }
   function render() {
     var up = hasUpdate();
@@ -1995,11 +2165,13 @@ window.APP_INFO.version='1.13';
       '<p class="msg">' + statusHTML() + '</p>' +
       '<div class="row">' + (up && latest.url ? '<a class="btn main" href="' + esc(latest.url) + '" target="_blank" rel="noopener">업데이트 받기</a>' : '') +
       (C.online ? '<button class="btn" type="button" data-chk' + (checking ? ' disabled' : '') + '>새 버전 확인</button>' : '') + '</div>' +
+      bkHTML() +
       '<p class="lbl">업데이트 내용</p><ul class="notes">' + notes + '</ul>' +
       '<p class="lbl">개인정보</p><p class="hint">' + esc(C.privacy || '') + '</p></div></div>';
     root.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', close); });
     var c = root.querySelector('[data-chk]');
     if (c) c.addEventListener('click', function () { check(true); });
+    root.querySelectorAll('[data-bk]').forEach(function (b) { b.addEventListener('click', function () { var k = b.getAttribute('data-bk'); if (k === 'save') bkSave(); else if (k === 'open') bkOpen(); else if (k === 'apply') bkApply(); else { bk.pending = null; bkSet(''); } }); });
   }
   function open() { isOpen = true; host.style.display = 'block'; render(); var sh = root.querySelector('.sheet'); if (sh) sh.focus(); if (C.online && !checking && (!latest || Date.now() - (latest.at || 0) > 600000)) check(false); }
   function close() { isOpen = false; host.style.display = 'none'; root.innerHTML = ''; try { label.focus(); } catch (e) { /* 무시 */ } }
@@ -2026,7 +2198,8 @@ window.APP_INFO.version='1.13';
   /* 폰(앱)이 확인한 최신 버전을 알려줄 때 */
   function native(v) { if (v) { latest = { v: norm(v), url: (latest && latest.url) || ('https://github.com/' + C.repo + '/releases/latest'), at: Date.now() }; try { localStorage.setItem(KEY, JSON.stringify(latest)); } catch (e) { /* 무시 */ } paint(); } }
 
-  window.AppInfo = { open: open, check: check, native: native, refresh: paint };
+  window.AppInfo = { open: open, check: check, native: native, refresh: paint,
+    backupDone: function (ok, why) { bkDone(!!ok, why); }, backupOpened: function (t) { bkOpened(t); } };
   paint();
   if (C.online && (!latest || Date.now() - (latest.at || 0) > 6 * 3600000)) setTimeout(function () { check(false); }, 1500);
   document.addEventListener('visibilitychange', function () { if (!document.hidden && C.online && latest && Date.now() - (latest.at || 0) > 6 * 3600000) check(false); });
