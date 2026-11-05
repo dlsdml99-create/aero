@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="ko"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' file: blob: https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: file: https:; media-src 'self' data: blob:; connect-src 'self' https: data: blob:; worker-src 'self' blob: https://cdnjs.cloudflare.com; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Aero</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -385,7 +385,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.16';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -1962,7 +1962,7 @@ refreshLive(false);
 
 
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.05", "items": ["입국 준비에 「내 짐」: 충전기·상비약 같은 준비물을 한 번 넣으면 다음 여행에도 그대로, 자주 쓰는 준비물은 눌러서 바로 추가", "출발 전날 밤 9시 알림에 남은 준비물 개수도 알려줘요"]}, {"v": "v1.14", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.05", "items": ["보안 강화: 앱 화면이 허락된 곳 말고는 스크립트를 불러오지 못하게 막고, 폰의 다른 파일을 읽지 못하게 하고, 업데이트 파일은 이 앱 저장소 주소에서만 받아요", "알림 보안: 다른 앱이 Aero 이름으로 가짜 알림을 띄우지 못하게 막았어요"]}, {"v": "v1.15", "d": "2026.11.05", "items": ["입국 준비에 「내 짐」: 충전기·상비약 같은 준비물을 한 번 넣으면 다음 여행에도 그대로, 자주 쓰는 준비물은 눌러서 바로 추가", "출발 전날 밤 9시 알림에 남은 준비물 개수도 알려줘요"]}, {"v": "v1.14", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
 window.APP_INFO.online=!!window.TicketNative;
 window.APP_INFO.version='1.14';
 </script>

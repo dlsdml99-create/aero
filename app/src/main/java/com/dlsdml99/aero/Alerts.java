@@ -17,12 +17,20 @@ import org.json.JSONObject;
 public class Alerts {
     static final String PREF = "aero", CHANNEL = "trip", ACTION = "com.dlsdml99.aero.ALERT";
 
+    // 다른 앱이 Aero 이름으로 가짜 알림을 띄우지 못하게 하는 비밀 값 (이 폰 안에서만 씀)
+    static String token(Context c) {
+        SharedPreferences p = c.getSharedPreferences(PREF, Context.MODE_PRIVATE);
+        String t = p.getString("tok", null);
+        if (t == null) { t = java.util.UUID.randomUUID().toString(); p.edit().putString("tok", t).apply(); }
+        return t;
+    }
+
     static void save(Context c, String json) {
         c.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit().putString("alerts", json).apply();
     }
 
     private static PendingIntent intent(Context c, int code, JSONObject a) {
-        Intent i = new Intent(c, AlertReceiver.class).setAction(ACTION);
+        Intent i = new Intent(c, AlertReceiver.class).setAction(ACTION).putExtra("tok", token(c));
         if (a != null) i.putExtra("title", a.optString("title")).putExtra("body", a.optString("body")).putExtra("code", code);
         return PendingIntent.getBroadcast(c, code, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }

@@ -10,6 +10,8 @@ public class AlertReceiver extends BroadcastReceiver {
     public void onReceive(Context c, Intent i) {
         String a = i == null ? null : i.getAction();
         if (Alerts.ACTION.equals(a)) {
+            // 이 앱이 예약한 알림만 띄움 (다른 앱이 보낸 가짜 알림 신호는 무시)
+            if (!Alerts.token(c).equals(i.getStringExtra("tok"))) return;
             Alerts.show(c, i.getStringExtra("title"), i.getStringExtra("body"), i.getIntExtra("code", 7));
         } else {
             Alerts.schedule(c);

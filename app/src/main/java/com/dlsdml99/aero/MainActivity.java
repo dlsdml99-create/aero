@@ -85,6 +85,10 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
+        // 보안: 앱 화면은 앱 안 파일만 열고, 폰의 다른 파일·콘텐츠는 못 읽게
+        s.setAllowFileAccessFromFileURLs(false);
+        s.setAllowUniversalAccessFromFileURLs(false);
+        WebView.setWebContentsDebuggingEnabled(false);
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
@@ -525,7 +529,7 @@ public class MainActivity extends Activity {
                 JSONArray as = o.optJSONArray("assets");
                 if (as != null) for (int i = 0; i < as.length(); i++) {
                     JSONObject a = as.getJSONObject(i);
-                    if (a.optString("name").endsWith(".apk")) { url = a.optString("browser_download_url"); break; }
+                    String du = a.optString("browser_download_url"); if (a.optString("name").endsWith(".apk") && du.startsWith("https://github.com/dlsdml99-create/aero/releases/download/")) { url = du; break; }
                 }
                 String mine = currentVersion();
                 if (tag.matches("v?[0-9.]+")) js("window.AppInfo&&window.AppInfo.native('" + tag + "')");
