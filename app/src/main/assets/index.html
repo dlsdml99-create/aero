@@ -333,6 +333,10 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 .checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .checks li{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--rule)}
 .checks li:last-child{border-bottom:0}
+.pk-h{margin:18px 0 4px;font-size:15px}.pk-h small{font-weight:400;font-size:12px;color:var(--ink-3,#888);margin-left:6px}
+.pk-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pk-c{border:1px solid var(--rule);background:transparent;color:inherit;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px}
+.pk-add{display:flex;gap:8px;margin-bottom:12px}.pk-add input{flex:1;min-width:0;height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--rule);background:transparent;color:inherit;font:inherit}
+.checks li:has(.pk-x){grid-template-columns:24px 1fr 28px}.pk-x{grid-column:3;grid-row:1;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:inherit;font-size:20px;opacity:.6}
 .checks input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--ok)}
 .checks label{display:flex;flex-direction:column;gap:2px;font-size:14px;font-weight:700;min-width:0;cursor:pointer}
 .checks label span{font-size:12px;font-weight:600;color:var(--ink-2)}
@@ -381,7 +385,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.14';
+const APP_VERSION = '1.15';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 const H5Q_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -448,6 +452,7 @@ const ENTRY = { // what a South Korean passport holder needs, checked 2026-10-31
 ENTRY.MP = ENTRY.GU;
 const SCHENGEN = new Set('AT BE BG CH CZ DE DK EE ES FI FR GR HR HU IS IT LI LT LU LV MT NL NO PL PT RO SE SI SK'.split(' '));
 const PLUG = new Set('JP TW HK MO SG MY PH US GU MP CA GB IE MT CY AU NZ AE MV'.split(' '));
+const PACK_SUGGEST = ['충전기', '상비약', '칫솔·치약', '선글라스', '우산', '수영복', '목베개', '볼펜 (입국 신고서)'];
 const GENERIC = [
   ['passport', '여권 유효기간 6개월 이상 남았는지'],
   ['battery', '보조배터리는 기내 가방에만 (부치는 짐 금지)'],
@@ -977,9 +982,9 @@ function alertsFor(t){
   const out = [], now = Date.now();
   for (const j of journeysOf(t).js) {
     const p = planFor(t, j); if (!p) continue;
-    const f = p.f, tz = p.tz;
+    const f = p.f, tz = p.tz, ck0 = checklistFor(t, j), left = ck0 && !ck0.home ? ck0.total - ck0.done : 0;
     const items = [
-      {type: 'eve', at: zoned(addDays(dayKey(p.leaveMs, tz), -1), '21:00', tz), title: `내일 ${fmtTime(p.leaveMs, tz)} 공항으로 출발해요`, body: `${f.airline} ${f.flight} ${aptKo(f.from)} → ${aptKo(f.to)} · ${fmtTime(f.depMs, tz)} 출발`},
+      {type: 'eve', at: zoned(addDays(dayKey(p.leaveMs, tz), -1), '21:00', tz), title: `내일 ${fmtTime(p.leaveMs, tz)} 공항으로 출발해요`, body: `${f.airline} ${f.flight} ${aptKo(f.from)} → ${aptKo(f.to)} · ${fmtTime(f.depMs, tz)} 출발${left > 0 ? ` · 준비물 ${left}개 남았어요` : ''}`},
       {type: 'pre', at: p.leaveMs - 30 * 60000, title: '30분 뒤 공항으로 출발해요', body: `${fmtTime(p.leaveMs, tz)} 출발 · 여권과 탑승권을 챙기세요`},
       {type: 'close', at: p.closeMs - 30 * 60000, title: '체크인 마감 30분 전이에요', body: `${f.airline} ${f.flight} 체크인은 보통 ${fmtTime(p.closeMs, tz)}에 마감돼요`}
     ];
@@ -1002,7 +1007,7 @@ function checklistFor(t, j){
   const dest = apt(j[j.length - 1].to), orig = apt(j[0].from);
   if (!dest) return null;
   const cc = dest.cc, items = [];
-  const add = (id, text, link, sub) => items.push({id, text, link, sub});
+  const add = (id, text, link, sub, mine) => items.push({id, text, link, sub, mine});
   /* 한국으로 돌아올 때: 가는 편의 '입국 준비'처럼 '귀국 준비' (관세청·질병관리청 기준, 2026-11-01 확인) */
   if (cc === 'KR') {
     if (!orig || orig.cc === 'KR') return null;
@@ -1011,6 +1016,7 @@ function checklistFor(t, j){
     add('kr:qcode', 'Q-CODE 건강상태 신고 해당되는지 확인', 'https://qcode.kdca.go.kr/', '중점검역관리지역에 머물렀거나 거쳐 왔으면 꼭, 열·기침이 있으면 신고. 지역은 분기마다 바뀌어요');
     add('kr:food', '고기·과일·씨앗은 들여올 수 없어요', null, '육포·소시지 같은 가공품도 안 돼요. 걸리면 과태료');
     add('kr:krw', '집에 갈 교통편·남은 외화 정리', null, '공항철도·리무진 시간, 남은 동전은 공항 기부함에');
+    (state.pack || []).forEach(x => add('pack:' + x.id, x.text, null, null, true));
     const check = t.check || {};
     return {cc, home: true, from: orig.cc, items, done: items.filter(x => check[x.id]).length, total: items.length};
   }
@@ -1023,6 +1029,7 @@ function checklistFor(t, j){
   }
   if (PLUG.has(cc)) add('plug', '멀티 어댑터(돼지코) 챙기기', null, '콘센트 모양이 한국과 달라요');
   GENERIC.forEach(([id, text]) => add(id, text));
+  (state.pack || []).forEach(x => add('pack:' + x.id, x.text, null, null, true));
   const check = t.check || {};
   return {cc, items, done: items.filter(x => check[x.id]).length, total: items.length};
 }
@@ -1042,9 +1049,9 @@ const statusUrl = l => 'https://www.google.com/search?q=' + encodeURIComponent(`
 const storeUrl = pkg => 'https://play.google.com/store/apps/details?id=' + encodeURIComponent(pkg);
 
 /* ---------- storage ---------- */
-const state = {trips: [], current: null, focus: {}, exampleS: {}, exampleCheck: {}, open: null, alertsOff: {}, passport: null, icnKey: ''};
-function load(){ try { const d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (d && Array.isArray(d.trips)) { state.trips = d.trips; state.current = d.current; state.alertsOff = d.alertsOff || {}; state.passport = d.passport || null; state.icnKey = d.icnKey || ''; } } catch(e){} }
-function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify({trips: state.trips, current: state.current, alertsOff: state.alertsOff, passport: state.passport, icnKey: state.icnKey})); } catch(e){} syncNative(); }
+const state = {trips: [], current: null, focus: {}, exampleS: {}, exampleCheck: {}, open: null, alertsOff: {}, passport: null, icnKey: '', pack: []};
+function load(){ try { const d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (d && Array.isArray(d.trips)) { state.trips = d.trips; state.current = d.current; state.alertsOff = d.alertsOff || {}; state.passport = d.passport || null; state.icnKey = d.icnKey || ''; state.pack = Array.isArray(d.pack) ? d.pack.filter(x => x && typeof x.id === 'string' && typeof x.text === 'string').slice(0, 40) : []; } } catch(e){} }
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify({trips: state.trips, current: state.current, alertsOff: state.alertsOff, passport: state.passport, icnKey: state.icnKey, pack: state.pack})); } catch(e){} syncNative(); }
 const uid = () => Math.random().toString(36).slice(2, 10);
 function syncNative(){
   if (!NATIVE) return;
@@ -1364,6 +1371,12 @@ function alertsSheet(){
     <div class="sheet-actions"><button class="btn btn-secondary" type="button" data-act="phone-alarm">휴대폰 알람도 맞추기</button></div>`, '알림·위젯');
 }
 
+function packBlock(mine){ const li = x => `<li>${x.mine ? `<button class="pk-x" type="button" data-act="pack-del" data-id="${esc(x.id.slice(5))}" aria-label="${esc(x.text)} 지우기">×</button>` : ''}<input type="checkbox" id="ck-${esc(x.id)}" data-check="${esc(x.id)}" ${(currentTrip().check || {})[x.id] ? 'checked' : ''}><label for="ck-${esc(x.id)}">${esc(x.text)}</label></li>`;
+  return `    <h3 class="pk-h">내 짐 <small>한 번 넣으면 다음 여행에도 그대로</small></h3>
+    ${mine.length ? `<ul class="checks">${mine.map(li).join('')}</ul>` : ''}
+    <div class="pk-chips">${PACK_SUGGEST.filter(s => !(state.pack || []).some(x => x.text === s)).map(s => `<button class="pk-c" type="button" data-act="pack-add" data-text="${esc(s)}">+ ${esc(s)}</button>`).join('')}</div>
+    <div class="pk-add"><input id="pk-in" type="text" maxlength="40" placeholder="직접 넣기 (예: 카메라)" autocomplete="off"><button class="btn btn-secondary" type="button" data-act="pack-add">추가</button></div>
+`; }
 function checklistSheet(){
   const t = currentTrip(), {j} = journeysOf(t), ck = checklistFor(t, j);
   if (!ck) return;
@@ -1374,15 +1387,18 @@ function checklistSheet(){
     const limit = addDays(depDate, 183), ok = state.passport >= limit;
     ppStatus = `<span class="st ${ok ? 'ok' : 'bad'}">${ok ? '출발일 기준 6개월 넘게 남았어요' : '출발일 기준 6개월이 안 남았어요. 입국이 거절될 수 있어요'}</span>`;
   }
-  const items = ck.items.map(x => `<li><input type="checkbox" id="ck-${esc(x.id)}" data-check="${esc(x.id)}" ${check[x.id] ? 'checked' : ''}><label for="ck-${esc(x.id)}">${esc(x.text)}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">공식 사이트 ↗</a>` : ''}</label></li>`).join('');
+  const li = x => `<li><input type="checkbox" id="ck-${esc(x.id)}" data-check="${esc(x.id)}" ${check[x.id] ? 'checked' : ''}>${x.mine ? `<button class="pk-x" type="button" data-act="pack-del" data-id="${esc(x.id.slice(5))}" aria-label="${esc(x.text)} 지우기">×</button>` : ''}<label for="ck-${esc(x.id)}">${esc(x.text)}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">공식 사이트 ↗</a>` : ''}</label></li>`;
+  const items = ck.items.filter(x => !x.mine).map(li).join(''), mine = ck.items.filter(x => x.mine);
   if (ck.home) return openSheet(`<div class="sheet-head"><h2>귀국 준비 · 대한민국</h2>${X_BTN}</div>
     <p class="msg">관세청·질병관리청 안내 기준 · 2026년 11월 1일 확인 · 규정은 바뀔 수 있으니 공식 사이트에서 한 번 더 확인하세요.</p>
     <button class="btn btn-secondary df-open" type="button" data-act="dutycalc">🧮 면세 한도 계산기${(t.df || []).length ? ` · ${(t.df || []).length}개 담음` : ''}</button>
     <ul class="checks">${items}</ul>
+${packBlock(mine)}
     <a class="txt-btn" href="https://www.customs.go.kr/" target="_blank" rel="noopener">관세청 여행자 안내 보기 ↗</a>`, '귀국 준비');
   openSheet(`<div class="sheet-head"><h2>입국 준비 · ${esc(regionKo(ck.cc))}</h2>${X_BTN}</div>
     <p class="msg">대한민국 여권 기준 · ${esc('2026년 10월 31일')} 확인 · 규정은 바뀔 수 있으니 출발 전 공식 사이트에서 한 번 더 확인하세요.</p>
     <ul class="checks">${items}</ul>
+${packBlock(mine)}
     <div class="pp"><label for="pp-exp">여권 만료일</label><input id="pp-exp" type="date" value="${esc(state.passport || '')}">${ppStatus}</div>
     <a class="txt-btn" href="https://www.0404.go.kr/" target="_blank" rel="noopener">외교부 해외안전여행에서 자세히 보기 ↗</a>`, '입국 준비');
 }
@@ -1838,6 +1854,9 @@ function journeyNow(t){ return journeysOf(t).j; }
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, t = currentTrip();
+  if (act === 'pack-add') { const inp = $('#pk-in'), text = (el.dataset.text || (inp && inp.value) || '').trim().slice(0, 40); if (!text) { if (inp) inp.focus(); return; }
+    if (!state.pack.some(x => x.text === text)) { state.pack.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), text}); save(); } render(); return checklistSheet(); }
+  if (act === 'pack-del') { state.pack = state.pack.filter(x => x.id !== el.dataset.id); save(); render(); return checklistSheet(); }
   if (act === 'scrim') { if (e.target === el) closeSheet(); return; }
   if (act === 'close') return closeSheet();
   if (act === 'pick-cam') { closeSheet(); if (NATIVE && NATIVE.pick) return NATIVE.pick('camera'); return $('#f-cam').click(); }
@@ -1925,7 +1944,7 @@ document.addEventListener('change', e => {
   if (el.dataset.alert) { state.alertsOff[el.dataset.alert] = !el.checked; save(); render(); return alertsSheet(); }
   if (el.id === 'pp-exp') { state.passport = cleanDate(el.value); save(); return checklistSheet(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#layer').firstChild) closeSheet(); if (e.key === 'Enter' && e.target && e.target.id === 'df-amt') dfAdd(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#layer').firstChild) closeSheet(); if (e.key === 'Enter' && e.target && e.target.id === 'df-amt') dfAdd(); if (e.key === 'Enter' && e.target && e.target.id === 'pk-in') { e.preventDefault(); const b = document.querySelector('.pk-add [data-act=pack-add]'); if (b) b.click(); } });
 for (const id of ['f-cam', 'f-file']) $('#' + id).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; handleFile(f); });
 document.addEventListener('paste', e => { const f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0]; if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) { e.preventDefault(); handleFile(f); } });
 let dropHint = null;
@@ -1943,7 +1962,7 @@ refreshLive(false);
 
 
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.05", "items": ["입국 준비에 「내 짐」: 충전기·상비약 같은 준비물을 한 번 넣으면 다음 여행에도 그대로, 자주 쓰는 준비물은 눌러서 바로 추가", "출발 전날 밤 9시 알림에 남은 준비물 개수도 알려줘요"]}, {"v": "v1.14", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 기기에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인, 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
 window.APP_INFO.online=!!window.TicketNative;
 window.APP_INFO.version='1.14';
 </script>
