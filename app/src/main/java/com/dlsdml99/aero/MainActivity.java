@@ -247,6 +247,23 @@ public class MainActivity extends Activity {
             });
         }
 
+        // 이음(번역기)을 다음 여행 나라 말로 열기. 언어·나라 코드는 형식을 확인한 것만 보냄
+        @JavascriptInterface
+        public void openIeum(String lang, String cc) {
+            if (lang == null || cc == null || !lang.matches("[a-z]{2,3}") || !cc.matches("[A-Z]{2}")) return;
+            runOnUiThread(() -> {
+                Intent i = getPackageManager().getLaunchIntentForPackage("com.ieum.app");
+                if (i != null) {
+                    i.setPackage("com.ieum.app");
+                    i.putExtra("trip_lang", lang);
+                    i.putExtra("trip_cc", cc);
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try { startActivity(i); return; } catch (Exception ignored) {}
+                }
+                openOutside(Uri.parse("https://dlsdml99-create.github.io/ieum/"));
+            });
+        }
+
         // 인천공항 운항 정보만 받아옴 (다른 주소는 막음)
         @JavascriptInterface
         public void httpGet(String id, String url) {
