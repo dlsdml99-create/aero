@@ -46,6 +46,7 @@ jobs:
             exit 1
           fi
           export KEY_PASS="${SIGNING%%:*}"
+          echo "::add-mask::$KEY_PASS"
           export KEYSTORE="$RUNNER_TEMP/aero.jks"
           echo "${SIGNING#*:}" | base64 -d > "$KEYSTORE"
           gradle assembleRelease --no-daemon --stacktrace

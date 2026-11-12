@@ -33,4 +33,7 @@ sed -e 's#<meta charset="utf-8">#<meta charset="utf-8"><link rel="apple-touch-ic
     -e 's# https://cdnjs.cloudflare.com##g' \
   app/src/main/assets/index.html > site/app/index.html
 grep -q 'apple-touch-icon' site/app/index.html
-if grep -q 'cdnjs' site/app/index.html; then echo "::error::웹앱에 cdnjs 주소가 남아 있어요"; exit 1; fi
+# 오프라인: 서비스워커(같은 사이트 파일만 저장) 붙이기
+sed "s/__V__/${VER:-dev}/" .github/sw.js > site/app/sw.js
+printf '%s\n' "<script>if('serviceWorker' in navigator&&window.isSecureContext&&location.protocol!=='file:')addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>" >> site/app/index.html
+if grep -q 'cdnjs\|fonts.googleapis\|fonts.gstatic' site/app/index.html; then echo "::error::웹앱에 바깥 CDN·글꼴 주소가 남아 있어요"; exit 1; fi

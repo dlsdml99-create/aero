@@ -127,8 +127,19 @@ public class MainActivity extends Activity {
             == android.content.res.Configuration.UI_MODE_NIGHT_YES;
     }
 
+    // 바깥 앱으로 여는 주소는 https + 정해 둔 곳(지도·검색·플레이 스토어·GitHub·각 나라 정부 입국 사이트)만
+    private static final String[] SAFE_HOSTS = {"google.com", "github.com", "github.io", "go.kr", "go.jp", "gov.tw", "gov.vn", "go.th", "gov.ph",
+        "gov.sg", "gov.my", "go.id", "dhs.gov", "canada.ca", "gov.uk", "europa.eu", "gov.au", "govt.nz"};
+    static boolean safeUrl(Uri u) {
+        if (u == null || !"https".equals(u.getScheme()) || u.getHost() == null || u.getUserInfo() != null) return false;
+        String h = u.getHost().toLowerCase(java.util.Locale.ROOT);
+        for (String d : SAFE_HOSTS) if (h.equals(d) || h.endsWith("." + d)) return true;
+        return false;
+    }
+
     private void openOutside(Uri u) {
-        try { startActivity(new Intent(Intent.ACTION_VIEW, u)); }
+        if (!safeUrl(u)) { toast("열 수 없는 주소예요"); return; }
+        try { startActivity(new Intent(Intent.ACTION_VIEW, u).addCategory(Intent.CATEGORY_BROWSABLE)); }
         catch (Exception e) { toast("열 수 있는 앱이 없어요"); }
     }
 
@@ -139,6 +150,8 @@ public class MainActivity extends Activity {
         if (Intent.ACTION_SEND.equals(i.getAction())) u = i.getParcelableExtra(Intent.EXTRA_STREAM);
         else if (Intent.ACTION_VIEW.equals(i.getAction())) u = i.getData();
         if (u == null) return;
+        // 받은 파일은 다른 앱이 건넨 content:// 주소만 (file:// 등은 거부)
+        if (!"content".equals(u.getScheme())) { i.setAction(Intent.ACTION_MAIN); toast("이 파일은 열 수 없어요"); return; }
         String type = i.getType();
         if (type == null) type = getContentResolver().getType(u);
         i.setAction(Intent.ACTION_MAIN);   // 화면을 돌려도 다시 처리하지 않게
