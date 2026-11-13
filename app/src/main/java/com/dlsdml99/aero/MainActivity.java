@@ -127,13 +127,27 @@ public class MainActivity extends Activity {
             == android.content.res.Configuration.UI_MODE_NIGHT_YES;
     }
 
-    // 바깥 앱으로 여는 주소는 https + 정해 둔 곳(지도·검색·플레이 스토어·GitHub·각 나라 정부 입국 사이트)만
-    private static final String[] SAFE_HOSTS = {"google.com", "github.com", "github.io", "go.kr", "go.jp", "gov.tw", "gov.vn", "go.th", "gov.ph",
+    // 바깥 앱으로 여는 주소는 https + 정해 둔 곳만.
+    // 누구나 페이지를 만들 수 있는 곳(github.io, github.com, google.com의 다른 서비스)은 정확한 주소·경로만 허용
+    private static final String[] GOV_HOSTS = {"go.kr", "go.jp", "gov.tw", "gov.vn", "go.th", "gov.ph",
         "gov.sg", "gov.my", "go.id", "dhs.gov", "canada.ca", "gov.uk", "europa.eu", "gov.au", "govt.nz"};
+    // 정확한 주소 + 경로 앞부분
+    private static final String[][] EXACT = {
+        {"www.google.com", "/maps"}, {"www.google.com", "/search"}, {"maps.google.com", "/"},
+        {"play.google.com", "/store/apps/details"},
+        {"github.com", "/dlsdml99-create/aero/"},
+        {"dlsdml99-create.github.io", "/ieum/"}, {"dlsdml99-create.github.io", "/aero/"}};
     static boolean safeUrl(Uri u) {
         if (u == null || !"https".equals(u.getScheme()) || u.getHost() == null || u.getUserInfo() != null) return false;
-        String h = u.getHost().toLowerCase(java.util.Locale.ROOT);
-        for (String d : SAFE_HOSTS) if (h.equals(d) || h.endsWith("." + d)) return true;
+        if (u.getPort() != -1 && u.getPort() != 443) return false;
+        String h = u.getHost().toLowerCase(java.util.Locale.ROOT), path = u.getPath() == null ? "/" : u.getPath();
+        if (path.contains("..")) return false;
+        for (String[] e : EXACT) {
+            String pre = e[1];
+            if (!h.equals(e[0])) continue;
+            if (pre.endsWith("/") ? path.startsWith(pre) : (path.equals(pre) || path.startsWith(pre + "/"))) return true;
+        }
+        for (String d : GOV_HOSTS) if (h.equals(d) || h.endsWith("." + d)) return true;
         return false;
     }
 

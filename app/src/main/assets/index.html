@@ -197,6 +197,10 @@ nav.bar{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--paper)
 .bar .btn{white-space:nowrap}
 @media (max-width:360px){.bar .btn{padding-inline:12px;gap:6px;font-size:14px}}
 nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
+/* 아래 버튼 3개(직접 입력·캡처·PDF·항공권 찍기)가 좁은 화면·큰 글자에서도 한 줄에 들어가게 */
+nav.bar .btn{flex:1 1 auto;min-width:0;justify-content:center}
+@media (max-width:520px){nav.bar .btn[data-act=manual] svg,nav.bar .btn[data-act=pick-file] svg{display:none}nav.bar .btn{padding-inline:10px;gap:5px}}
+@media (max-width:340px){nav.bar .btn svg{display:none}nav.bar .btn{padding-inline:6px;white-space:normal;line-height:1.15}nav.bar .in{gap:5px}}
 .ver{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin-left:-6px;padding:0 6px;font-family:var(--f-mono);font-size:12px;font-weight:600;color:var(--ink-3);margin-right:auto;white-space:nowrap}
 .btn-primary{background:var(--ink);color:var(--paper)}
 .btn-secondary{background:var(--paper-2);color:var(--ink);border:1px solid var(--rule)}
@@ -381,7 +385,10 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 <main class="wrap" id="main"></main>
 
 <nav class="bar" aria-label="항공권 추가"><div class="in">
-  <span class="ver" id="ver">v1.19</span>
+  <span class="ver" id="ver">v1.20</span>
+  <button class="btn btn-secondary" type="button" data-act="manual" aria-label="직접 입력">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>
+    <span class="bl">직접 입력</span></button>
   <button class="btn btn-secondary" type="button" data-act="pick-file">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
     캡처·PDF</button>
@@ -397,7 +404,7 @@ nav.bar .in{display:flex;align-items:center;gap:8px;padding-block:10px}
 
 <script>
 'use strict';
-const APP_VERSION = '1.19';
+const APP_VERSION = '1.20';
 const NATIVE = window.TicketNative || null;            // APK bridge: photo text, GPS, alerts, widget, share, brightness
 const HOME_TZ = 'Asia/Seoul';
 // 웹앱에서만 쓰는 부품: 바깥 CDN이 아니라 같은 사이트(lib/)에 둔 파일 (빌드 때 npm에서 받아 sha256 확인)
@@ -1083,7 +1090,7 @@ function cleanTrips(a){
 function load(){ try { const d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (d && Array.isArray(d.trips)) { state.trips = cleanTrips(d.trips); state.current = d.current; state.alertsOff = d.alertsOff || {}; state.passport = d.passport || null; state.icnKey = d.icnKey || ''; state.pack = Array.isArray(d.pack) ? d.pack.filter(x => x && typeof x.id === 'string' && typeof x.text === 'string').slice(0, 40) : []; state.aptNotes = cleanNotes(d.aptNotes); state.fs = [0, 1, 2].includes(d.fs) ? d.fs : 0; state.theme = ['light', 'dark'].includes(d.theme) ? d.theme : ''; } } catch(e){} applyLook(); }
 function applyLook(){ const r = document.documentElement; if (state.fs) r.dataset.fs = state.fs; else delete r.dataset.fs; if (state.theme) r.dataset.theme = state.theme; else delete r.dataset.theme; if (window.AppInfo && AppInfo.refresh) AppInfo.refresh(); }
 let saveWarned = 0;
-function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify({trips: state.trips, current: state.current, alertsOff: state.alertsOff, passport: state.passport, icnKey: state.icnKey, pack: state.pack, aptNotes: state.aptNotes || {}, fs: state.fs || 0, theme: state.theme || ''})); } catch(e){ if (Date.now() - saveWarned > 8000) { saveWarned = Date.now(); setTimeout(() => toast('저장 공간이 부족해서 저장하지 못했어요. 지난 여행이나 탑승권 사진을 지우고 다시 해 주세요'), 0); } } syncNative(); }
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify({trips: state.trips, current: state.current, alertsOff: state.alertsOff, passport: state.passport, icnKey: state.icnKey, pack: state.pack, aptNotes: state.aptNotes || {}, fs: state.fs || 0, theme: state.theme || ''})); } catch(e){ if (Date.now() - saveWarned > 30000) { saveWarned = Date.now(); setTimeout(() => toast('앱 저장 공간이 가득 차서 저장하지 못했어요. 지난 여행을 지우거나 백업한 뒤 정리해 주세요', null, 7000), 0); } } syncNative(); }
 const uid = () => Math.random().toString(36).slice(2, 10);
 function syncNative(){
   if (!NATIVE) return;
@@ -1117,6 +1124,8 @@ function tripSpan(t){
   return {legs, start, end};
 }
 function isPastTrip(t){ const sp = tripSpan(t); return sp.end != null && sp.end < Date.now() - 6 * 3600000; }
+/* 출발은 했지만 아직 끝나지 않은 여행 (첫 화면과 목록이 같은 기준을 씀) */
+function isOngoingTrip(t){ return !isPastTrip(t) && tripSpan(t).start < Date.now(); }
 function upcomingTrip(){ let best = null; for (const t of state.trips) { if (isPastTrip(t)) continue; const st = tripSpan(t).start; if (!best || st < best.st) best = {t, st}; } return best && best.t; }
 function currentTrip(){
   if (!state.trips.length) return state.showExample ? exampleTrip() : null;
@@ -1152,21 +1161,21 @@ function heroView(t, j, plan){
   const nAlerts = alertsFor(t).filter(a => !state.alertsOff[a.type] && j.some(l => a.id.includes(legKey(l)))).length;
   const hasPass = passesFor(t, j).length > 0;
   return `<section class="board" aria-label="공항 출발 시각">
-    <div class="board-top"><span class="eyebrow">${plan.f.depMs < Date.now() ? '지난 여행 · 공항으로 출발했던 시각' : '공항으로 출발'}</span><span class="board-date">${esc(fmtDate(plan.leaveMs, tz))}</span></div>
+    <div class="board-top"><span class="eyebrow">${plan.f.depMs < Date.now() ? (isPastTrip(t) ? '지난 여행 · 공항으로 출발했던 시각' : '여행 중 · 공항으로 출발했던 시각') : '공항으로 출발'}</span><span class="board-date">${esc(fmtDate(plan.leaveMs, tz))}</span></div>
     <div class="flaps num" role="img" aria-label="${esc(fmtTime(plan.leaveMs, tz))}에 출발">${flaps(fmtTime(plan.leaveMs, tz))}</div>
     <div class="board-sub"><span class="cd" data-until="${plan.leaveMs}">${esc(fmtUntil(plan.leaveMs))}</span><span>${esc(aptKo(f.from))} ${esc(termLabel(term))}${term && term.rule ? ' (항공사 기준)' : ''}</span></div>
     ${plan.conc ? `<div class="board-alert" role="note">탑승동 게이트(${esc(plan.gate)})예요. 셔틀트레인으로 이동해야 해서 10분 더 일찍 출발하게 잡았어요.</div>` : ''}
-    <div class="board-rows">
+    ${isPastTrip(t) ? '' : `<div class="board-rows">
       <button class="board-row" type="button" data-act="toggle" data-what="travel" aria-expanded="${open === 'travel'}"><span class="k">공항까지 이동</span><span class="v num">${esc(fmtDur(plan.travel))}</span><span class="h">${s.travel == null ? '기본값 · 눌러서 바꾸기' : '눌러서 바꾸기'}</span></button>
       <button class="board-row" type="button" data-act="toggle" data-what="buffer" aria-expanded="${open === 'buffer'}"><span class="k">공항 도착</span><span class="v num">${esc(fmtTime(plan.arriveMs, tz))}</span><span class="h">출발 ${esc(fmtDur(plan.buffer + (plan.conc ? 10 : 0)))} 전</span></button>
-    </div>
-    ${open === 'travel' ? `<div class="chips" role="group" aria-label="공항까지 이동 시간">${travelChips.map(m => `<button class="chip" type="button" data-act="set" data-what="travel" data-v="${m}" aria-pressed="${plan.travel === m}">${fmtDur(m)}</button>`).join('')}<span class="chip-hint">${NATIVE ? '현재 위치 기준으로 자동 계산돼요. 다르면 골라 주세요.' : '구글 지도 길찾기에서 본 시간으로 골라 주세요. 앱에서는 현재 위치로 자동 계산돼요.'}</span></div>` : ''}
-    ${open === 'buffer' ? `<div class="chips" role="group" aria-label="공항 도착 여유">${bufChips.map(m => `<button class="chip" type="button" data-act="set" data-what="buffer" data-v="${m}" aria-pressed="${plan.buffer === m}">출발 ${fmtDur(m)} 전</button>`).join('')}<span class="chip-hint">${plan.intl ? '국제선은 보통 2~3시간 전 도착을 권해요.' : '국내선은 보통 1시간 전 도착을 권해요.'}</span></div>` : ''}
-    <div class="board-actions">
+    </div>`}
+    ${open === 'travel' && !isPastTrip(t) ? `<div class="chips" role="group" aria-label="공항까지 이동 시간">${travelChips.map(m => `<button class="chip" type="button" data-act="set" data-what="travel" data-v="${m}" aria-pressed="${plan.travel === m}">${fmtDur(m)}</button>`).join('')}<span class="chip-hint">${NATIVE ? '현재 위치 기준으로 자동 계산돼요. 다르면 골라 주세요.' : '구글 지도 길찾기에서 본 시간으로 골라 주세요. 앱에서는 현재 위치로 자동 계산돼요.'}</span></div>` : ''}
+    ${open === 'buffer' && !isPastTrip(t) ? `<div class="chips" role="group" aria-label="공항 도착 여유">${bufChips.map(m => `<button class="chip" type="button" data-act="set" data-what="buffer" data-v="${m}" aria-pressed="${plan.buffer === m}">출발 ${fmtDur(m)} 전</button>`).join('')}<span class="chip-hint">${plan.intl ? '국제선은 보통 2~3시간 전 도착을 권해요.' : '국내선은 보통 1시간 전 도착을 권해요.'}</span></div>` : ''}
+    ${isPastTrip(t) ? '' : `<div class="board-actions">
       <a class="btn btn-amber" href="${esc(mapsDir(aptQuery(f.from, term && term.t)))}" target="_blank" rel="noopener">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>
         길찾기 · 환승역 보기</a>
-    </div>
+    </div>`}
     <div class="board-more">
       <button class="mini" type="button" data-act="taxi">택시 기사에게 보여주기</button>
       ${hasPass ? `<button class="mini" type="button" data-act="pass-view">탑승권 보기</button>` : ''}
@@ -1179,7 +1188,7 @@ function heroView(t, j, plan){
 function realtimeView(t, j){
   const f = j[0], last = j[j.length - 1];
   const dep = f.from === 'ICN', arr = !dep && last.to === 'ICN';
-  if (!dep && !arr) return '';
+  if ((!dep && !arr) || (!t.example && isPastTrip(t))) return '';
   const l = dep ? f : last, rt = realtimeFor(t, l, dep ? 'dep' : 'arr');
   const title = `인천공항 실시간 · ${esc(l.airline)} ${esc(l.flight)}`;
   if (!rt) {
@@ -1476,24 +1485,32 @@ function tripRow(t, cur){
 function tripsSheet(){
   const cur = (currentTrip() || {}).id;
   const all = state.trips.map(t => ({t, sp: tripSpan(t), past: isPastTrip(t)}));
-  const up = all.filter(x => !x.past).sort((a, b) => a.sp.start - b.sp.start), past = all.filter(x => x.past).sort((a, b) => b.sp.start - a.sp.start);
+  const now = Date.now(), live = all.filter(x => !x.past && x.sp.start < now).sort((a, b) => a.sp.start - b.sp.start);
+  const up = all.filter(x => !x.past && !(x.sp.start < now)).sort((a, b) => a.sp.start - b.sp.start), past = all.filter(x => x.past).sort((a, b) => b.sp.start - a.sp.start);
   const seg = (name, v, cur, opts) => `<div class="seg" role="group" aria-label="${name}">${opts.map(([val, label]) => `<button class="seg-b" type="button" data-act="look" data-k="${v}" data-v="${val}" aria-pressed="${cur === val}">${label}</button>`).join('')}</div>`;
   openSheet(`<div class="sheet-head"><h2>내 항공권</h2>${X_BTN}</div>
     ${state.trips.length > 1 ? `<input class="trip-find" id="trip-find" type="search" placeholder="찾기 (편명·공항·도시·이름·예약번호)" aria-label="항공권 찾기" autocomplete="off"><p class="msg" id="trip-none" hidden>찾는 항공권이 없어요. 띄어 쓴 낱말이 모두 들어간 것만 보여 드려요.</p>` : ''}
     ${!state.trips.length ? '<p class="msg">아직 저장된 항공권이 없어요. 아래 버튼으로 항공권을 찍으면 자동으로 저장돼요.</p>' : ''}
-    ${up.length ? `<p class="trip-sec">다가오는 여행 · ${up.length}개</p>${up.map(x => tripRow(x.t, cur)).join('')}` : ''}
-    ${past.length ? `<p class="trip-sec"><span>지난 여행 · ${past.length}개</span><button class="txt-btn" type="button" data-act="del-past">지난 여행 모두 지우기</button></p>${past.map(x => tripRow(x.t, cur)).join('')}` : ''}
+    ${live.length ? `<p class="trip-sec"><span data-l="지금 여행 중">지금 여행 중 · ${live.length}개</span></p>${live.map(x => tripRow(x.t, cur)).join('')}` : ''}
+    ${up.length ? `<p class="trip-sec"><span data-l="다가오는 여행">다가오는 여행 · ${up.length}개</span></p>${up.map(x => tripRow(x.t, cur)).join('')}` : ''}
+    ${past.length ? `<p class="trip-sec"><span data-l="지난 여행">지난 여행 · ${past.length}개</span><button class="txt-btn" type="button" data-act="del-past">지난 여행 모두 지우기</button></p>${past.map(x => tripRow(x.t, cur)).join('')}` : ''}
     <p class="msg">일행 탑승권도 찍으면 같은 여정으로 묶여요. ${NATIVE ? "메일·카톡의 e-티켓을 '공유 → Aero'로 바로 넣을 수 있어요." : "앱에서는 메일·카톡의 e-티켓을 '공유 → Aero'로 바로 넣을 수 있어요."}</p>
     <div class="sheet-actions"><button class="btn btn-secondary" type="button" data-act="manual">직접 입력</button>${NATIVE ? `<button class="btn btn-secondary" type="button" data-act="icn-key">인천공항 실시간${state.icnKey ? ' ✓' : ''}</button><button class="btn btn-secondary" type="button" data-act="check-update">새 버전 확인</button>` : ''}</div>
     <h3 class="sub-h">화면 설정</h3>
     <div class="set-row"><b>글자 크기</b>${seg('글자 크기', 'fs', state.fs || 0, [[0, '보통'], [1, '크게'], [2, '아주 크게']])}</div>
-    <div class="set-row"><b>화면 밝기</b>${seg('화면 밝기', 'theme', state.theme || '', [['', '폰 설정대로'], ['light', '밝게'], ['dark', '어둡게']])}</div>
+    <div class="set-row"><b>화면 색</b>${seg('화면 색', 'theme', state.theme || '', [['', '폰 설정 따라'], ['light', '밝게'], ['dark', '어둡게']])}</div>
     <p class="foot-note">항공권 정보와 사진은 이 폰에만 저장돼요. 공항·항공사 데이터: OurAirports, OpenFlights(ODbL), mwgg/Airports.</p>`, '내 항공권');
 }
 function filterTrips(q){
   const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean); let shown = 0;
   document.querySelectorAll('#layer .trip-row').forEach(r => { const ok = words.every(w => r.dataset.q.includes(w)); r.hidden = !ok; if (ok) shown++; });
-  document.querySelectorAll('#layer .trip-sec').forEach(h => { let n = h.nextElementSibling, any = false; while (n && n.classList.contains('trip-row')) { if (!n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; });
+  /* 찾는 중에는 찾은 개수만 보여 주고, '지난 여행 모두 지우기'는 숨김 (찾은 것 말고 전부 지워지는 일이 없게) */
+  document.querySelectorAll('#layer .trip-sec').forEach(h => {
+    let n = h.nextElementSibling, cnt = 0, all = 0; while (n && n.classList.contains('trip-row')) { all++; if (!n.hidden) cnt++; n = n.nextElementSibling; }
+    h.hidden = !cnt;
+    const l = h.querySelector('[data-l]'); if (l) l.textContent = words.length ? `${l.dataset.l} · 찾은 ${cnt}개` : `${l.dataset.l} · ${all}개`;
+    const d = h.querySelector('[data-act=del-past]'); if (d) d.hidden = words.length > 0;
+  });
   const none = $('#trip-none'); if (none) none.hidden = shown > 0;
 }
 document.addEventListener('input', e => { if (e.target && e.target.id === 'trip-find') filterTrips(e.target.value); if (e.target && e.target.id === 'ef-flight') autoFill(false); });
@@ -1677,7 +1694,7 @@ function autoFill(){
   const l = pastLegOf(m[1], normFlight(m[2])); if (!l) { if (note) note.hidden = true; return; }
   let n = 0; const fill = (id, v) => { const el = $('#' + id); if (el && !el.value && v) { el.value = v; el.dataset.auto = '1'; n++; } };
   fill('ef-from', l.from); fill('ef-to', l.to); fill('ef-dep', l.dep); fill('ef-arr', l.arr); fill('ef-term', l.terminal);
-  if (n && note) { note.textContent = `지난 기록(${l.date ? fmtDateStr(l.date, true) : '전에 넣은 항공권'})으로 공항·시각을 채웠어요. 다르면 고쳐 주세요.`; note.hidden = false; }
+  if (n && note) { note.textContent = `전에 넣은 기록(${l.date ? fmtDateStr(l.date, true) + ' 항공편' : '같은 편명'})으로 공항·시각을 채웠어요. 다르면 고쳐 주세요.`; note.hidden = false; }
 }
 let formWarned = '';
 function readAptInput(v){
@@ -1699,7 +1716,15 @@ function readForm(){
   const days = (Date.parse(v.date) - Date.parse(todayStr())) / 864e5, warns = [];
   if (days < 0) warns.push(`지난 날짜(${fmtDateStr(v.date, true)})예요. 지난 여행으로 저장돼요.`);
   else if (days > 400) warns.push(`1년도 더 남은 날짜(${fmtDateStr(v.date, true)})예요. 연도를 확인해 주세요.`);
-  if (v.dep && v.arr) { const r = resolveLeg(v, 0); if (r.arrMs == null) warns.push('도착 시각이 출발 시각·비행시간과 맞지 않아요(도착이 출발보다 이르거나 너무 늦어요). 도착 시각을 확인해 주세요.'); }
+  if (v.dep && v.arr) {
+    const r = resolveLeg(v, 0), est = estFlightMin(v.from, v.to), B = apt(v.to);
+    if (r.arrMs == null) warns.push('도착 시각이 출발 시각·비행시간과 맞지 않아요(도착이 출발보다 이르거나 너무 늦어요). 도착 시각을 확인해 주세요.');
+    /* 도착이 출발보다 이르면 다음 날 도착으로 풀리는데, 비행시간이 비정상적으로 길면 한 번 더 확인 */
+    else if (r.durMin > 18 * 60 || (est && r.durMin > est * 2 + 180)) {
+      const h = Math.floor(r.durMin / 60), mm = Math.round(r.durMin % 60);
+      warns.push(`이대로면 ${B ? fmtDate(r.arrMs, B.tz) : ''} ${v.arr} 도착, 비행시간이 ${h}시간${mm ? ` ${mm}분` : ''}이에요${est ? ` (이 노선은 보통 ${fmtDur(est)} 정도)` : ''}. 출발·도착 시각과 날짜를 확인해 주세요.`);
+    }
+  }
   if (!v.dep && editing && !editing.trip) warns.push('출발 시각을 넣으면 공항으로 나갈 시각을 바로 알려 드려요.');
   const sig = JSON.stringify(v);
   if (warns.length && formWarned !== sig) {
@@ -1718,7 +1743,7 @@ function editSheet(t, i){
 }
 function manualSheet(){
   editing = {trip: null, i: -1}; formWarned = '';
-  openSheet(`<div class="sheet-head"><h2>직접 입력</h2>${X_BTN}</div><p class="msg">편명·공항·날짜만 있으면 나머지는 자동으로 계산해요. 전에 넣은 편명이면 공항·시각을 저절로 채워요.</p>${legForm({airline: '', flight: '', from: '', to: '', date: addDays(todayStr(), 1)})}
+  openSheet(`<div class="sheet-head"><h2>직접 입력</h2>${X_BTN}</div><p class="msg">편명·공항·날짜만 있으면 나머지는 자동으로 계산해요. 날짜는 꼭 골라 주세요. 전에 넣은 편명이면 공항·시각을 저절로 채워요.</p>${legForm({airline: '', flight: '', from: '', to: '', date: ''})}
     <div class="sheet-actions"><button class="btn btn-primary" type="button" data-act="save-leg">추가</button></div>`, '직접 입력');
 }
 
@@ -1853,14 +1878,14 @@ async function finishScan(groups, tLegs, tPax, blob){
   for (const g of groups) {
     const legs = combineLegs(g.legs, tLegs);
     if (!legs.length) continue;
-    if (!imgKey && blob) { imgKey = 'img_' + uid(); if ((await idb.put(imgKey, blob)) == null) { imgKey = null; toast('저장 공간이 부족해서 탑승권 사진은 저장하지 못했어요. 항공편 정보는 저장했어요'); } }
+    if (!imgKey && blob) { imgKey = 'img_' + uid(); if ((await idb.put(imgKey, blob)) == null) { imgKey = null; toast('앱 저장 공간이 가득 차서 탑승권 사진은 저장하지 못했어요. 항공편 정보는 저장했어요'); } }
     upsertTrip(legs, g.name || tPax, {raw: g.raw, fmt: g.fmt, img: imgKey});
     found = Math.max(found, legs.length);
   }
   if (!found) { step('done', 'skip'); scanFail('항공권에서 항공편을 찾지 못했어요. 바코드나 편명이 잘 보이게 다시 찍거나, 직접 입력해 주세요.'); return; }
   step('done', 'done');
   refreshLive(false);
-  setTimeout(() => { closeSheet(); toast(groups.length > 1 ? `탑승권 ${groups.length}장을 한 여정으로 묶었어요` : `항공편 ${found}개를 찾았어요`); }, 650);
+  setTimeout(() => { closeSheet(); addedToast(groups.length > 1 ? `탑승권 ${groups.length}장을 한 여정으로 묶었어요` : `항공편 ${found}개를 찾았어요`, upsertTrip.last); }, 650);
 }
 /* the APK reads the photo on the phone (barcode + text) and hands the result here */
 window.onNativeScanStart = () => { if (!busy) scanSheet(null); };
@@ -2012,9 +2037,16 @@ function upsertTrip(legs, passenger, passInfo){
     const dup = t.passes.findIndex(p => p.name === name && ((p.raw && p.raw === entry.raw) || p.legs.join() === keys.join()));
     if (dup >= 0) t.passes[dup] = entry; else t.passes.push(entry);
   }
-  state.current = t.id; delete state.focus[t.id];
+  /* 첫 화면은 늘 가장 가까운 다가오는 여행. 방금 넣은 여행이 그보다 뒤면 목록에서 고를 수 있게 알려 줌 */
+  const up = upcomingTrip();
+  upsertTrip.hidden = !!(up && up !== t); upsertTrip.last = t;
+  state.current = upsertTrip.hidden ? null : t.id; delete state.focus[t.id];
   save(); render();
   return t;
+}
+function addedToast(msg, t){
+  if (!t || !upsertTrip.hidden || !state.trips.includes(t)) return toast(msg);
+  toast(`${msg}. 첫 화면에는 더 가까운 여행이 먼저 나와요`, {label: '보기', fn(){ state.current = t.id; state.open = null; save(); render(); window.scrollTo({top: 0}); }});
 }
 function receiveFile(b64, mime, name){
   try {
@@ -2098,7 +2130,7 @@ document.addEventListener('click', e => {
       if (v.seat) { leg.seats = leg.seats || {}; leg.seats[(tr.names || [])[0] || '탑승객'] = v.seat; }
       state.current = tr.id; save(); render(); closeSheet(); return toast('고쳤어요');
     }
-    closeSheet(); upsertTrip([{...v, gate: null, boarding: null, cabin: null, pnr: null, src: 'manual'}], null, null); return toast('항공편을 추가했어요');
+    closeSheet(); const nt = upsertTrip([{...v, gate: null, boarding: null, cabin: null, pnr: null, src: 'manual'}], null, null); return addedToast('항공편을 추가했어요', nt);
   }
   if (act === 'del-leg') {
     const tr = state.trips.find(x => x.id === editing.trip); if (!tr) return closeSheet();
@@ -2117,6 +2149,7 @@ document.addEventListener('click', e => {
   }
   if (act === 'del-past') {
     if (!el.classList.contains('confirm')) { el.classList.add('confirm'); el.textContent = '한 번 더 누르면 모두 지워요'; return; }
+    const fq = $('#trip-find'); if (fq && fq.value.trim()) return;   // 찾는 중에는 모두 지우기를 하지 않음
     const before = {trips: state.trips, current: state.current}, gone = state.trips.filter(isPastTrip);
     state.trips = state.trips.filter(x => !gone.includes(x));
     if (gone.some(x => x.id === state.current)) state.current = null;
@@ -2156,7 +2189,7 @@ refreshLive(false);
 
 
 <!--APPINFO--><script>
-window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.13", "items": ["🔒 백업 비밀번호: 백업 파일에 예약번호·여권 만료일·탑승권 사진이 들어 있어서, 비밀번호(6글자 이상)를 넣으면 잠가서 저장해요", "🗂 내 항공권 목록을 날짜순으로, '다가오는 여행'과 '지난 여행'으로 나눠 보여요. 연도와 편명도 같이 나오고, 지난 여행은 한 번에 지울 수 있어요", "🔎 내 항공권 찾기: 편명·공항·도시·이름·예약번호로 찾아요 (여러 낱말을 띄어 쓰면 모두 들어간 것만)", "✍️ 직접 입력할 때 전에 넣은 편명이면 공항·시각·터미널을 저절로 채워요", "⚠️ 지난 날짜, 출발과 도착이 같은 공항, 출발보다 이른 도착 시각은 저장 전에 한 번 더 알려 드려요. 끝난 여행은 '지난 여행'으로 표시해요", "↩️ 항공권·구간을 지운 뒤 6초 안에 '되돌리기'를 누르면 원래대로 돌아와요", "🔠 글자 크기(보통·크게·아주 크게)와 화면 밝기(폰 설정대로·밝게·어둡게)를 '내 항공권' 아래에서 골라요", "📶 아이폰 웹앱을 한 번 열면 공항·비행기 안처럼 인터넷이 없어도 열려요", "💾 폰 저장 공간이 부족해 저장하지 못하면 알려 드려요", "🛡 보안: 바깥 글꼴(구글)을 쓰지 않고, 앱 화면이 정해 둔 곳에만 연결해요. 폰 자동 백업에서 항공권 기록을 빼고, 바깥 링크는 안전한 주소만 열어요", "작은 버튼(고치기·실시간 운항·예시 닫기·버전)을 누르기 쉽게 키우고, 흐린 회색 글자를 더 진하게 했어요"]}, {"v": "v1.18", "d": "2026.11.12", "items": ["📱 아이폰에서도 쓸 수 있어요: 다운로드 페이지의 '아이폰·PC에서는 웹으로 쓰기'로 열고 홈 화면에 추가하면 돼요", "🇪🇺 유럽 ETIAS 안내를 최신으로: 아직 시행 전이고 시작 날짜가 정해지지 않았어요"]}, {"v": "v1.17", "d": "2026.11.08", "items": ["🕐 시차·현지 시간: 현지 시각과 한국 시각을 나란히, 시차 적응 팁과 비행기에서 잘지 말지, 한국 가족에게 연락하기 좋은 시간", "📝 공항 메모: 라운지·흡연실·약국 위치를 공항마다 적어 두면 다음 여행과 환승 안내에도 그대로", "🔌 입국 준비의 멀티 어댑터에 나라별 콘센트 모양과 전압(일본 100V 등)을 같이 알려줘요", "🗣️ 이음으로 그 나라 말 준비: 버튼 한 번에 번역기 이음이 다음 여행 나라 말로 열려요"]}, {"v": "v1.16", "d": "2026.11.05", "items": ["보안 강화: 앱 화면이 허락된 곳 말고는 스크립트를 불러오지 못하게 막고, 폰의 다른 파일을 읽지 못하게 하고, 업데이트 파일은 이 앱 저장소 주소에서만 받아요", "알림 보안: 다른 앱이 Aero 이름으로 가짜 알림을 띄우지 못하게 막았어요"]}, {"v": "v1.15", "d": "2026.11.05", "items": ["입국 준비에 「내 짐」: 충전기·상비약 같은 준비물을 한 번 넣으면 다음 여행에도 그대로, 자주 쓰는 준비물은 눌러서 바로 추가", "출발 전날 밤 9시 알림에 남은 준비물 개수도 알려줘요"]}, {"v": "v1.14", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 폰에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인(GitHub), 도착지 날씨(Open-Meteo, 공항 위치만 보냄), 면세 계산기 환율(open.er-api.com), 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요. 항공권 정보는 어디에도 보내지 않아요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
+window.APP_INFO={"name": "Aero", "repo": "dlsdml99-create/aero", "mount": "#ver", "notes": [{"v": "current", "d": "2026.11.13", "items": ["✍️ 첫 화면 아래에 '직접 입력' 버튼이 늘 있어요. 항공권을 넣은 뒤에도 바로 다음 항공편을 넣을 수 있어요", "📅 직접 입력할 때 날짜가 미리 채워져 있지 않아요. 날짜를 꼭 골라 주세요", "⚠️ 도착 시각이 출발보다 일러서 비행시간이 아주 길어지면(예: 22시간) 저장 전에 한 번 더 물어봐요", "🗂 항공권을 여러 개 넣어도 첫 화면에는 가장 가까운 여행이 나와요. 방금 넣은 여행은 알림의 '보기'로 바로 볼 수 있어요", "🛫 오늘 이미 출발한 여행은 첫 화면과 목록 모두 '여행 중'으로 같게 보여요. 지난 여행에는 공항 이동·실시간 안내를 보여 주지 않아요", "🔎 찾는 중에는 찾은 개수만 보여 주고, '지난 여행 모두 지우기'는 숨겨요", "🔒 백업 비밀번호는 8글자 이상으로 바뀌었어요. 숫자만 쓰면 한 번 더 알려 드려요. 전에 만든 백업은 그대로 열려요", "🛡 보안: 앱 밖으로 여는 주소를 지도·플레이 스토어·이 앱 저장소·정부 입국 사이트로 더 좁혔어요", "앱 저장 공간이 가득 차서 저장하지 못하면 다시 알려 드려요. 정보 창 글이 단어 중간에서 끊기지 않게, '화면 밝기'는 '화면 색'으로 이름을 바꿨어요"]}, {"v": "v1.19", "d": "2026.11.13", "items": ["🔒 백업 비밀번호: 백업 파일에 예약번호·여권 만료일·탑승권 사진이 들어 있어서, 비밀번호(6글자 이상)를 넣으면 잠가서 저장해요", "🗂 내 항공권 목록을 날짜순으로, '다가오는 여행'과 '지난 여행'으로 나눠 보여요. 연도와 편명도 같이 나오고, 지난 여행은 한 번에 지울 수 있어요", "🔎 내 항공권 찾기: 편명·공항·도시·이름·예약번호로 찾아요 (여러 낱말을 띄어 쓰면 모두 들어간 것만)", "✍️ 직접 입력할 때 전에 넣은 편명이면 공항·시각·터미널을 저절로 채워요", "⚠️ 지난 날짜, 출발과 도착이 같은 공항, 출발보다 이른 도착 시각은 저장 전에 한 번 더 알려 드려요. 끝난 여행은 '지난 여행'으로 표시해요", "↩️ 항공권·구간을 지운 뒤 6초 안에 '되돌리기'를 누르면 원래대로 돌아와요", "🔠 글자 크기(보통·크게·아주 크게)와 화면 밝기(폰 설정대로·밝게·어둡게)를 '내 항공권' 아래에서 골라요", "📶 아이폰 웹앱을 한 번 열면 공항·비행기 안처럼 인터넷이 없어도 열려요", "💾 폰 저장 공간이 부족해 저장하지 못하면 알려 드려요", "🛡 보안: 바깥 글꼴(구글)을 쓰지 않고, 앱 화면이 정해 둔 곳에만 연결해요. 폰 자동 백업에서 항공권 기록을 빼고, 바깥 링크는 안전한 주소만 열어요", "작은 버튼(고치기·실시간 운항·예시 닫기·버전)을 누르기 쉽게 키우고, 흐린 회색 글자를 더 진하게 했어요"]}, {"v": "v1.18", "d": "2026.11.12", "items": ["📱 아이폰에서도 쓸 수 있어요: 다운로드 페이지의 '아이폰·PC에서는 웹으로 쓰기'로 열고 홈 화면에 추가하면 돼요", "🇪🇺 유럽 ETIAS 안내를 최신으로: 아직 시행 전이고 시작 날짜가 정해지지 않았어요"]}, {"v": "v1.17", "d": "2026.11.08", "items": ["🕐 시차·현지 시간: 현지 시각과 한국 시각을 나란히, 시차 적응 팁과 비행기에서 잘지 말지, 한국 가족에게 연락하기 좋은 시간", "📝 공항 메모: 라운지·흡연실·약국 위치를 공항마다 적어 두면 다음 여행과 환승 안내에도 그대로", "🔌 입국 준비의 멀티 어댑터에 나라별 콘센트 모양과 전압(일본 100V 등)을 같이 알려줘요", "🗣️ 이음으로 그 나라 말 준비: 버튼 한 번에 번역기 이음이 다음 여행 나라 말로 열려요"]}, {"v": "v1.16", "d": "2026.11.05", "items": ["보안 강화: 앱 화면이 허락된 곳 말고는 스크립트를 불러오지 못하게 막고, 폰의 다른 파일을 읽지 못하게 하고, 업데이트 파일은 이 앱 저장소 주소에서만 받아요", "알림 보안: 다른 앱이 Aero 이름으로 가짜 알림을 띄우지 못하게 막았어요"]}, {"v": "v1.15", "d": "2026.11.05", "items": ["입국 준비에 「내 짐」: 충전기·상비약 같은 준비물을 한 번 넣으면 다음 여행에도 그대로, 자주 쓰는 준비물은 눌러서 바로 추가", "출발 전날 밤 9시 알림에 남은 준비물 개수도 알려줘요"]}, {"v": "v1.14", "d": "2026.11.05", "items": ["귀국 준비에 면세 한도 계산기: 산 물건 금액을 넣으면 1인 800달러를 넘는지 바로 알려줘요", "왼쪽 아래 버전 → 내 데이터 백업: 기록을 파일로 저장했다가 새 폰에서 불러오기"]}, {"v": "v1.13", "d": "2026.11.01", "items": ["오는 편(한국 도착)에도 '귀국 준비' 체크리스트: 면세 한도, 세관 신고, Q-CODE, 반입 금지 식품"]}, {"v": "v1.12", "d": "2026.11.01", "items": ["환승 시간이 짧으면 빨간 경고와 함께, 다음 편을 놓쳤을 때 할 일을 알려줘요", "귀국편까지 넣으면 한 여행으로 묶여 날짜별 전체 일정(몇 박 며칠, 어디서 몇 박)을 보여줘요"]}, {"v": "v1.11", "d": "2026.11.01", "items": ["구간마다 탑승권을 따로 찍거나 직접 넣어도, 이어지는 환승편은 한 여정으로 묶여 환승 안내가 나와요", "작은 화면에서 아래 버튼 글자가 두 줄로 깨지지 않게 고쳤어요"]}, {"v": "v1.10", "d": "2026.11.01", "items": ["보안: 앱 안에서는 바깥 스크립트를 불러오는 길을 완전히 막았어요"]}, {"v": "v1.9", "d": "2026.11.01", "items": ["왼쪽 아래 버전을 누르면 앱 정보·업데이트 내용·개인정보를 볼 수 있어요", "새 버전이 나오면 버전 글씨가 노란색으로 바뀌어요"]}, {"v": "v1.8", "d": "2026.11.01", "items": ["쓰이지 않던 AI 연결 코드를 완전히 지웠어요", "처음 설치하면 빈 화면에서 시작해요"]}, {"v": "v1.7", "d": "2026.11.01", "items": ["알림 숫자는 내가 넣은 항공권만 세요", "예시는 '예시로 둘러보기'에서만 보이고 저장되지 않아요"]}, {"v": "v1.6", "d": "2026.11.01", "items": ["항공권 사진·캡처·PDF를 폰 안에서 읽어요 (탑승권 바코드 + 글자 인식)", "공항으로 나갈 시각과 출발 알림 3번", "홈 화면 위젯, 휴대폰 알람 맞추기", "탑승권 크게 보기, 일행 탑승권 묶기"]}], "privacy": "항공권 사진과 정보는 이 폰에만 저장돼요. 바코드·글자 인식은 폰 안에서 해요. 인터넷은 새 버전 확인(GitHub), 도착지 날씨(Open-Meteo, 공항 위치만 보냄), 면세 계산기 환율(open.er-api.com), 인천공항 실시간 정보(직접 켰을 때, 공공데이터포털), 지도·길찾기를 열 때만 써요. 항공권 정보는 어디에도 보내지 않아요.", "backup": {"keys": ["chalkak.v1"], "idb": [{"db": "chalkak", "store": "img"}], "bridge": "TicketNative"}};
 window.APP_INFO.online=!!window.TicketNative;window.APP_INFO.web=!window.TicketNative&&location.protocol==='https:';
 window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만 정해요
 </script>
@@ -2229,7 +2262,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
   var root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
   var CSS = ':host{all:initial}' +
     '.w{--bg:#fff;--ink:#16202b;--ink2:#4a5664;--ink3:#7a8594;--line:#dfe5ea;--pill:#dcefe6;--pillInk:#1f6b4c;--btn:#f2f5f7;--main:#16202b;--mainInk:#fff;--yellow:#F5B400;' +
-    'font:15px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:var(--ink);position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center}' +
+    'font:15px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:var(--ink);position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;word-break:keep-all;overflow-wrap:anywhere}' +
     '.scrim{position:absolute;inset:0;background:rgba(10,15,20,.45)}' +
     '.sheet{position:relative;width:100%;max-width:520px;max-height:88%;overflow-y:auto;background:var(--bg);border-radius:24px 24px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.18);' +
     'padding:10px max(20px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));box-sizing:border-box}' +
@@ -2265,7 +2298,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
      파일은 사용자가 고른 곳(내 파일·드라이브 등)에만 저장되고, 앱이 인터넷으로 보내지 않는다.
      설정: APP_INFO.backup = { keys:['이름', '접두어*'], idb:[{db, store}], bridge:'Android', save:fn(name,text)->Promise }  ── */
   var B = C.backup || null, bk = { msg: '', busy: false, pending: null, locked: null };
-  var PW_MIN = 6;
+  var PW_MIN = 8;
   /* 비밀번호 잠금: 비밀번호로 만든 열쇠(PBKDF2 SHA-256 60만 번)로 AES-GCM 256 암호화. 비밀번호와 열쇠는 어디에도 저장하지 않음 */
   var BLOCK = (function () {
     function ok() { return !!(window.crypto && crypto.subtle && crypto.getRandomValues && window.TextEncoder && window.TextDecoder); }
@@ -2337,7 +2370,10 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
   function bkSave() {
     if (bk.busy) return;
     var pwEl = root.querySelector('#bk-pw'), pw = pwEl ? pwEl.value : '';
-    if (pw && pw.length < PW_MIN) { bkSet('비밀번호는 ' + PW_MIN + '글자 이상으로 넣어 주세요.'); return; }
+    if (pw && pw.length < PW_MIN) { bk.numOk = ''; bkSet('비밀번호는 ' + PW_MIN + '글자 이상으로 해 주세요'); return; }
+    /* 숫자만 쓴 비밀번호는 막지 않고 한 번 더 확인 */
+    if (pw && /^\d+$/.test(pw) && bk.numOk !== pw) { bk.numOk = pw; bkSet('숫자만 쓰면 쉽게 풀릴 수 있어요. 글자를 섞어 주세요. 이대로 잠그려면 "백업 파일로 저장"을 한 번 더 눌러 주세요.'); return; }
+    bk.numOk = '';
     bkSet(pw ? '비밀번호로 잠근 백업 파일을 만드는 중이에요…' : '백업 파일을 만드는 중이에요…', true);
     var ls = {}; lsKeys().forEach(function (k) { ls[k] = localStorage.getItem(k); });
     Promise.all((B.idb || []).map(idbDump)).then(function (dumps) {
@@ -2355,7 +2391,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
       if (f && navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: name }).then(function () { bkDone(true); }, function (e) { bkDone(false, e && e.name === 'AbortError' ? 'cancel' : ''); }); return; }
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000); bkDone(true);
   }
-  function bkDone(ok, why) { bkSet(ok ? '백업 파일을 저장했어요. 새 폰에서는 이 화면의 "백업 불러오기"로 넣으면 돼요.' : why === 'cancel' ? '' : '백업 파일을 저장하지 못했어요. 다시 해 주세요.'); }
+  function bkDone(ok, why) { if (ok) { var pe = root.querySelector('#bk-pw'); if (pe) pe.value = ''; } bkSet(ok ? '백업 파일을 저장했어요. 새 폰에서는 이 화면의 "백업 불러오기"로 넣으면 돼요.' : why === 'cancel' ? '' : '백업 파일을 저장하지 못했어요. 다시 해 주세요.'); }
   function bkOpen() {
     if (bk.busy) return; bk.pending = null; bk.locked = null;
     var br = bkBridge(); if (br && typeof br.backupOpen === 'function') { bkSet('백업 파일을 골라 주세요', true); br.backupOpen(); return; }
@@ -2366,7 +2402,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
   function bkOpened(text) {
     if (text == null) { bkSet(''); return; }
     var o = null; try { o = JSON.parse(text); } catch (e) { o = null; }
-    if (o && o.enc === 1 && o.lock && o.repo === C.repo) { bk.locked = o; bk.pending = null; bkSet('비밀번호가 걸린 백업이에요. 저장할 때 넣은 비밀번호를 넣어 주세요.'); return; }
+    if (o && o.enc === 1 && o.lock && o.repo === C.repo) { bk.locked = o; bk.pending = null; bkSet(''); return; }
     if (!o || typeof o.ls !== 'object' || !o.ls) { bkSet(o && o.enc === 1 ? '다른 앱의 백업이에요. ' + C.name + ' 백업 파일을 골라 주세요.' : '이 파일은 백업 파일이 아니에요.'); return; }
     if (o.repo !== C.repo) { bkSet('이 파일은 ' + (o.app ? '“' + o.app + '” 앱의' : '다른 앱의') + ' 백업이에요. ' + C.name + ' 백업 파일을 골라 주세요.'); return; }
     /* 망가졌거나 빈 백업은 받지 않음 */
@@ -2391,7 +2427,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
       Object.keys(o.ls).forEach(function (k) { if (typeof o.ls[k] === 'string' && bkMatch(k)) set0.call(localStorage, k, o.ls[k]); });
     } catch (e) {
       try { lsKeys().forEach(function (k) { rm0.call(localStorage, k); }); Object.keys(old).forEach(function (k) { set0.call(localStorage, k, old[k]); }); } catch (e2) { /* 무시 */ }
-      bk.pending = null; bkSet('저장 공간이 부족해서 불러오지 못했어요. 원래 기록은 그대로예요.'); return;
+      bk.pending = null; bkSet('앱 저장 공간이 가득 차서 불러오지 못했어요. 원래 기록은 그대로예요.'); return;
     }
     /* 다시 열리기 전에 앱이 예전 기록을 덮어쓰지 못하게 잠금 */
     SP.setItem = function (k, v) { if (this === localStorage && bkMatch(k)) return; return set0.apply(this, arguments); };
@@ -2406,9 +2442,9 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
     return '<p class="lbl">내 데이터 백업</p>' +
       (p ? '<p class="hint">' + esc((when && !isNaN(when) ? (when.getMonth() + 1) + '월 ' + when.getDate() + '일 ' : '') + '백업 (v' + (p.version || '?') + (p.cnt ? ' · ' + p.cnt : '') + ')') + '을 불러오면 지금 이 폰의 ' + esc(C.name) + ' 기록이 백업 내용으로 바뀌어요.</p>' +
         '<div class="row"><button class="btn main" type="button" data-bk="apply"' + (bk.busy ? ' disabled' : '') + '>불러오기</button><button class="btn" type="button" data-bk="cancel">취소</button></div>'
-      : bk.locked ? '<p class="hint">🔒 비밀번호가 걸린 백업이에요.</p><div class="row"><input class="pw" id="bk-upw" type="password" autocomplete="off" maxlength="40" placeholder="백업 비밀번호" aria-label="백업 비밀번호"><button class="btn main" type="button" data-bk="unlock"' + (bk.busy ? ' disabled' : '') + '>열기</button><button class="btn" type="button" data-bk="cancel">취소</button></div>'
+      : bk.locked ? '<p class="hint">🔒 비밀번호가 걸린 백업이에요. 저장할 때 넣은 비밀번호를 넣어 주세요.</p><input class="pw" id="bk-upw" type="password" autocomplete="off" maxlength="64" placeholder="백업 비밀번호" aria-label="백업 비밀번호"><div class="row" style="margin-top:8px"><button class="btn main" type="button" data-bk="unlock"' + (bk.busy ? ' disabled' : '') + '>열기</button><button class="btn" type="button" data-bk="cancel">취소</button></div>'
       : '<p class="hint">폰을 바꾸거나 앱을 지우기 전에 파일로 저장해 두세요. 파일은 내가 고른 곳에만 저장되고 인터넷으로 보내지 않아요. 예약번호·여권 만료일·탑승권 사진이 들어 있으니 비밀번호로 잠그는 걸 권해요.</p>' +
-        (BLOCK.ok() ? '<input class="pw" id="bk-pw" type="password" autocomplete="new-password" maxlength="40" placeholder="비밀번호 (선택 · ' + PW_MIN + '글자 이상 · 넣으면 잠가요)" aria-label="백업 비밀번호 (선택)"><p class="hint" style="font-size:13px;margin:4px 0 8px">비밀번호를 잊으면 백업을 열 수 없어요.</p>' : '') +
+        (BLOCK.ok() ? '<input class="pw" id="bk-pw" type="password" autocomplete="new-password" maxlength="64" placeholder="비밀번호 (선택, ' + PW_MIN + '글자 이상)" aria-label="백업 비밀번호 (선택, ' + PW_MIN + '글자 이상)"><p class="hint" style="font-size:13px;margin:4px 0 8px">비밀번호를 잊으면 백업을 열 수 없어요.</p>' : '') +
         '<div class="row"><button class="btn" type="button" data-bk="save"' + (bk.busy ? ' disabled' : '') + '>백업 파일로 저장</button><button class="btn" type="button" data-bk="open"' + (bk.busy ? ' disabled' : '') + '>백업 불러오기</button></div>') +
       (bk.msg ? '<p class="hint" role="status">' + esc(bk.msg) + '</p>' : '');
   }
@@ -2420,6 +2456,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
         (n.items || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></li>';
     }).join('');
     var th = document.documentElement.getAttribute('data-theme'), dk = th === 'dark' || (!th && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    var keep = {}; ['bk-pw', 'bk-upw'].forEach(function (id) { var e = root.querySelector('#' + id); if (e && e.value) keep[id] = e.value; });
     root.innerHTML = '<style>' + CSS + '</style><div class="w' + (dk ? ' dk' : '') + '"><div class="scrim" data-x></div>' +
       '<div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(C.name) + ' 앱 정보" tabindex="-1">' +
       '<div class="grab"></div><div class="head"><h2>' + esc(C.name) + '<span class="vtag' + (up ? ' up' : '') + '">v' + esc(cur()) + '</span></h2>' +
@@ -2430,6 +2467,7 @@ window.APP_INFO.version=APP_VERSION;   // 버전은 APP_VERSION 한 곳에서만
       bkHTML() +
       '<p class="lbl">업데이트 내용</p><ul class="notes">' + notes + '</ul>' +
       '<p class="lbl">개인정보</p><p class="hint">' + esc(C.privacy || '') + '</p></div></div>';
+    Object.keys(keep).forEach(function (id) { var e = root.querySelector('#' + id); if (e) e.value = keep[id]; });
     root.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', close); });
     var c = root.querySelector('[data-chk]');
     if (c) c.addEventListener('click', function () { check(true); });
